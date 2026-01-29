@@ -1,0 +1,21 @@
+{
+    "monday": {
+        "api_url": "https://api.monday.com/v2",
+        "api_version": "2024-04",
+        "api_token": "YOUR_MONDAY_API_TOKEN_HERE"
+    },
+    "board": {
+        "board_id": 1234567890,
+        "group_id": "topics"
+    },
+    "columns": {
+        "email": "email",
+        "phone": "phone",
+        "company": "text",
+        "notes": "long_text"
+    },
+    "defaults": {
+        "company": "",
+        "notes": ""
+    }
+}
