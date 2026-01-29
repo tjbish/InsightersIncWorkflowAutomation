@@ -3,10 +3,11 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Virtual environments
+# Virtual and local environments
 .venv/
 venv/
 env/
+.env
 
 # Packaging
 build/
@@ -15,6 +16,7 @@ dist/
 
 # Testing
 .pytest_cache/
+.mypy_cache/
 .coverage
 
 # IDE
