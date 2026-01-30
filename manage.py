@@ -5,7 +5,7 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    # Default to local settings for development
+    # Default to local settings for development: May need to change for cloud deployment
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src.config.settings.local')
     try:
         from django.core.management import execute_from_command_line

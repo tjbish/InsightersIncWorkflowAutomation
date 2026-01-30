@@ -10,6 +10,7 @@ env = environ.Env()
 # Read .env file if it exists
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+# NOTE: Change for PROD
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-prod')
 
 DEBUG = env.bool('DEBUG', default=False)
@@ -17,6 +18,7 @@ DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 INSTALLED_APPS = [
+    # Sprint 2; make sure to check if we need or don't need admin rights
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
