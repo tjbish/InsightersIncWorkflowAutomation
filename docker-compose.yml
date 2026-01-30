@@ -1,0 +1,30 @@
+services:
+  web:
+    build: .
+    # Override the production command to run the dev server locally
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=dev_secret_key_for_local_only
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/insighters_db
+      - DJANGO_SETTINGS_MODULE=src.config.settings.local
+
+  db:
+    image: postgres:15
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=insighters_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+volumes:
+  postgres_data:
