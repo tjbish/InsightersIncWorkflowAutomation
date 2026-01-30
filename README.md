@@ -19,7 +19,7 @@
         app.yaml – Google App Engine configuration specifying runtime, environment variables, and service settings.
 
     Django project config:
-        src/config/init.py – Marks the config directory as a Python package.
+        src/config/__init__.py – Marks the config directory as a Python package.
 
         src/config/urls.py – Defines the URL routing table that maps request paths to Django views.
 
@@ -30,7 +30,7 @@
         src/config/settings/ – Contains environment-specific Django configuration modules.
 
     Settings files:
-        src/config/settings/init.py – Marks the settings directory as a Python package.
+        src/config/settings/__init__.py – Marks the settings directory as a Python package.
 
         src/config/settings/base.py – Holds shared Django settings common to all environments.
 
@@ -103,5 +103,3 @@
 
         ```bash
         pip install requests
-
-
