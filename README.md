@@ -128,8 +128,14 @@
            - python manage.py runserver
 
     ## Quick start (Docker)
-        - docker compose up --build
-        - Visit http://localhost:8000/ (admin at /admin/)
+        1. Build and start services:
+           - docker compose up --build
+        2. Open the app:
+           - http://localhost:8000/ (admin at /admin/)
+        3. Stop services:
+           - docker compose down
+        4. Reset database volume (optional):
+           - docker compose down -v
 
 # Core app
     The minimal core app now renders a template-based home page at `/`.
