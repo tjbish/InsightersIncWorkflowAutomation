@@ -28,7 +28,7 @@ INSTALLED_APPS = [
     # Third party
     # 'django_htmx', # Uncomment if using HTMX
     # Local apps
-    # 'src.apps.core',
+    'src.apps.core',
 ]
 
 MIDDLEWARE = [

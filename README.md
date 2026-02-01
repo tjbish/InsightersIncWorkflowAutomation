@@ -103,3 +103,34 @@
 
         ```bash
         pip install requests
+        ```
+
+# Local development (Django)
+    This project uses environment variables loaded from a `.env` file at the repo root.
+    A template is provided as `.env.example` (copy it to `.env` for local use).
+
+    ## Required environment variables
+        - DATABASE_URL (required, no sqlite fallback configured)
+        - DJANGO_SETTINGS_MODULE (optional; defaults to src.config.settings.local in manage.py)
+        - SECRET_KEY (optional for local; defaults in local settings)
+        - DEBUG (optional for local; defaults in local settings)
+
+    ## Quick start (local, non-Docker)
+        1. Create/activate a virtualenv and install deps:
+           - python -m venv .venv
+           - .\.venv\Scripts\activate
+           - pip install -r requirements.txt
+
+        2. Create .env (copy from .env.example) and set DATABASE_URL.
+
+        3. Run migrations and start the server:
+           - python manage.py migrate
+           - python manage.py runserver
+
+    ## Quick start (Docker)
+        - docker compose up --build
+        - Visit http://localhost:8000/ (admin at /admin/)
+
+# Core app
+    The minimal core app now renders a template-based home page at `/`.
+    Template file: `templates/home.html`
