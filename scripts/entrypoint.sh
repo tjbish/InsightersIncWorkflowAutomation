@@ -7,5 +7,9 @@ set -e
 echo "Applying database migrations..."
 python manage.py migrate --noinput
 
+# Collect static files for non-debug deployments
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
 # Execute the command passed to the container (e.g., gunicorn or runserver)
 exec "$@"
