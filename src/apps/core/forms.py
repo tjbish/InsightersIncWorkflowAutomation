@@ -1,5 +1,5 @@
 from django import forms
-from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator, EmailValidator
+from django.core.validators import RegexValidator
 
 
 # TODO: Look for more secure ways to handle PII (SSN, Bank Account Number, etc.) - Likely a Django Form Library
@@ -7,7 +7,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator, RegexVa
 # TODO: Verify that all fields have necessary validators; and then add encryption; make sure that all necessary fields are required
 class BusinessIntakeForm(forms.Form):
     # Common Validators
-    ssn_validator = RegexValidator(r'^\d{3}-\d{2}-\d{4}$', 'Enter SSN in XXX-XX-XXXX format.')
+    ssn_validator = RegexValidator(r'^(\d{3}-?\d{2}-?\d{4}|XXX-XX-XXXX)$', 'Enter SSN in XXX-XX-XXXX format.')
     zip_validator = RegexValidator(r'^\d{5}(?:-\d{4})?$', 'Enter a valid ZIP code.')
     phone_validator = RegexValidator(r'^\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$', 'Enter a valid phone number.')
 
@@ -25,8 +25,7 @@ class BusinessIntakeForm(forms.Form):
         max_digits=5, 
         decimal_places=2,
         min_value=0,
-        max_value=100,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
+        max_value=100
     )
     
     owner2_name = forms.CharField(label="Owner's Name (2)", max_length=100, required=False)
@@ -44,14 +43,13 @@ class BusinessIntakeForm(forms.Form):
         decimal_places=2, 
         required=False,
         min_value=0,
-        max_value=100,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
+        max_value=100
     )
 
     # Section 2: Business Contact Info
     business_name = forms.CharField(label="Business Name", max_length=200)
     fin_number = forms.CharField(label="FIN (Federal ID Number)", max_length=50)
-    email = forms.EmailField(label="E-mail Address", validators=[EmailValidator()])
+    email = forms.EmailField(label="E-mail Address") # EmailValidator built into field, no need to have a second EmailValidator
     
     address = forms.CharField(label="Address", max_length=200)
     city = forms.CharField(label="City", max_length=100)
@@ -73,9 +71,9 @@ class BusinessIntakeForm(forms.Form):
     state = forms.ChoiceField(label="State", choices=US_STATES)
     zip_code = forms.CharField(label="Zip Code", max_length=10, validators=[zip_validator])
     
-    phone_number = forms.CharField(label="Phone Number", max_length=20, validators=[phone_validator])
-    cell_number = forms.CharField(label="Cell Number", max_length=20, required=False, validators=[phone_validator])
-    fax_number = forms.CharField(label="Fax Number", max_length=20, required=False, validators=[phone_validator])
+    phone_number = forms.CharField(label="Phone Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
+    cell_number = forms.CharField(label="Cell Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), required=False, validators=[phone_validator])
+    fax_number = forms.CharField(label="Fax Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), required=False, validators=[phone_validator])
 
     # Section 3: Business Type & History
     BUSINESS_TYPES = [
