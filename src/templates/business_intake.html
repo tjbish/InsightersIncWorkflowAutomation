@@ -37,7 +37,8 @@ NOTE: Look into adding front end form logic in addition to backend logic for val
                     <p class="text-muted">Please complete the fields below to match your official business records.</p>
                 </div>
 
-                <form method="post">
+                <!-- Restrict HTML5 from validating the form; only let Django validate the form-->
+                <form method="post" novalidate>
                     {% csrf_token %}
                     
                     <h4 class="section-header">Owner Information</h4>
