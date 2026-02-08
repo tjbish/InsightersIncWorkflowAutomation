@@ -1,10 +1,12 @@
 from django.test import TestCase
-from .forms import BusinessIntakeForm
+from ..forms import BusinessIntakeForm
+
+# TO RUN Tests: docker-compose exec web python manage.py test src.apps.core.tests.test_business_forms
+
 
 class BusinessIntakeFormTests(TestCase):
     def setUp(self):
         # A dictionary of valid data to use as a baseline for tests
-        # This ensures we only break one field at a time in our negative tests
         self.valid_data = {
             'owner1_name': 'Jane Doe',
             'owner1_ssn': '123-45-6789',
