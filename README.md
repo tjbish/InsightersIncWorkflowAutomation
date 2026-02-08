@@ -115,6 +115,10 @@
         - SECRET_KEY (optional for local; defaults in local settings)
         - DEBUG (optional for local; defaults in local settings)
 
+    ## Additional environment variables
+        - INTAKE_LOGIN_ID (optional; defaults to admin)
+        - INTAKE_LOGIN_PASSWORD (optional; defaults to admin)
+
     ## Quick start (local, non-Docker)
         1. Create/activate a virtualenv and install deps:
            - python -m venv .venv
@@ -140,3 +144,12 @@
 # Core app
     The minimal core app now renders a template-based home page at `/`.
     Template file: `templates/home.html`
+
+    Intake pages:
+        - Business intake: `/business/`
+        - Individual intake: `/individual/`
+        - Intake login: `/intake-login/`
+
+    Intake access control:
+        - Business and Individual intake pages require login.
+        - Temporary credentials are controlled by `INTAKE_LOGIN_ID` and `INTAKE_LOGIN_PASSWORD`.

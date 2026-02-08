@@ -268,3 +268,16 @@ class PersonalIntakeForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date'}),
         required=True
     )
+
+
+class IntakeLoginForm(forms.Form):
+    login_id = forms.CharField(
+        label="Login ID",
+        max_length=150,
+        widget=forms.TextInput(attrs={'autocomplete': 'username'})
+    )
+    password = forms.CharField(
+        label="Password",
+        max_length=150,
+        widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'})
+    )
