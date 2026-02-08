@@ -9,13 +9,9 @@ from .forms import BusinessIntakeForm, PersonalIntakeForm, IntakeLoginForm
 from .models import BusinessIntakeSubmission, PersonalIntakeSubmission
 
 
-TEMP_LOGIN_ID = settings.INTAKE_LOGIN_ID
-TEMP_LOGIN_PASSWORD = settings.INTAKE_LOGIN_PASSWORD
-
-
 def validate_intake_login(login_id: str, password: str) -> bool:
     # TODO: Replace with DB lookup when credentials are stored.
-    return login_id == TEMP_LOGIN_ID and password == TEMP_LOGIN_PASSWORD
+    return login_id == settings.INTAKE_LOGIN_ID and password == settings.INTAKE_LOGIN_PASSWORD
 
 
 def require_intake_login(view_func):
