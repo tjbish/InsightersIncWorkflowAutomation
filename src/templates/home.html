@@ -1,52 +1,53 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Insighters Inc Workflow Automation</title>
-    <style>
-      .cta-button {
-        display: inline-block;
-        padding: 10px 16px;
-        border: 1px solid #222;
-        background: #e6e6e6;
-        color: #111;
-        text-decoration: none;
-        border-radius: 6px;
-        transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-      }
-      .cta-button:hover,
-      .cta-button:focus-visible {
-        background: #d2d2d2;
-        border-color: #111;
-        color: #000;
-      }
-    </style>
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insighters Inc Workflow Automation</title>
+  <style>
+    .cta-button {
+      display: inline-block;
+      padding: 10px 16px;
+      border: 1px solid #222;
+      background: #e6e6e6;
+      color: #111;
+      text-decoration: none;
+      border-radius: 6px;
+      transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+    }
+
+    .cta-button:hover,
+    .cta-button:focus-visible {
+      background: #d2d2d2;
+      border-color: #111;
+      color: #000;
+    }
+  </style>
+</head>
 
 <body>
   <main style="
       min-height: 100vh;
       margin: 0;
-      background: url('/static/background.jpg') center / cover no-repeat;
+      background: url('{% static "background.jpg" %}') center / cover no-repeat;
       display: flex;
       align-items: center;
     ">
     <div style="width: 33.3333%; padding: 32px 32px 32px 64px;">
-      <div style="text-align: left; max-width: 360px;">
-        <a href="https://myinsighters.com/" style="display: inline-block;">
-          <img src="/static/insightersLogo.png" alt="Insighters Inc logo"
-            style="max-width: 500px; height: auto; margin-bottom: 16px;" />
-        </a>
-        <h1 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation</h1>
-        <p style="margin: 0 0 24px;">Choose an intake path to get started.</p>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <a class="cta-button" href="/business">Business Intake</a>
-          <a href="/individual"
-            class="cta-button">Individual Intake</a>
-        </div>
+    <div style="text-align: left; max-width: 360px;">
+      <a href="https://myinsighters.com/" style="display: inline-block;">
+        <img src="{% static "insightersLogo.jpg" %}" alt="Insighters Inc logo"
+          style="max-width: 500px; height: auto; margin-bottom: 16px;" />
+      </a>
+      <h1 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation</h1>
+      <p style="margin: 0 0 24px;">Choose an intake path to get started.</p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a class="cta-button" href="/business">Business Intake</a>
+        <a href="/individual" class="cta-button">Individual Intake</a>
       </div>
+    </div>
     </div>
   </main>
 </body>
