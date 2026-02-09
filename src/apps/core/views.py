@@ -29,6 +29,9 @@ def require_intake_login(view_func):
 def home(request):
     return render(request, "home.html")
 
+def admin_dashboard(request):
+    return render(request, "admin.html")
+
 
 @sensitive_variables()  # helps prevent sensitive values showing up in debug output
 @require_intake_login
