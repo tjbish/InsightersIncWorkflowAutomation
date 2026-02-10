@@ -17,7 +17,10 @@ def validate_intake_login(login_id: str, password: str) -> bool:
 def require_intake_login(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
-        if request.session.get("intake_logged_in"):
+        allowed_path = request.session.get("intake_login_ok_for")
+        if allowed_path == request.path:
+            # One-time access after successful login to ensure login is required each visit.
+            request.session.pop("intake_login_ok_for", None)
             return view_func(request, *args, **kwargs)
 
         request.session["intake_login_next"] = request.path
@@ -188,11 +191,9 @@ def intake_login(request):
             password = form.cleaned_data["password"]
 
             if validate_intake_login(login_id, password):
-                request.session["intake_logged_in"] = True
-                request.session["intake_login_id"] = login_id
-
                 next_path = request.session.pop("intake_login_next", None)
                 if next_path:
+                    request.session["intake_login_ok_for"] = next_path
                     return redirect(next_path)
 
                 return redirect("home")
