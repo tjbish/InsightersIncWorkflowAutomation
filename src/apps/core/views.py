@@ -13,7 +13,6 @@ def validate_intake_login(login_id: str, password: str) -> bool:
     # TODO: Replace with DB lookup when credentials are stored.
     return login_id == settings.INTAKE_LOGIN_ID and password == settings.INTAKE_LOGIN_PASSWORD
 
-
 def require_intake_login(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
@@ -182,6 +181,7 @@ def personal_view(request):
     return render(request, "personal_intake.html", {"form": form})
 
 
+# TODO Implement database storage of login_id and password when submitted (Logs users that actually use their ID/password to access forms)
 @sensitive_variables("login_id", "password")
 def intake_login(request):
     if request.method == "POST":
