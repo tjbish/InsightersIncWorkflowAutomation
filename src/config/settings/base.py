@@ -22,7 +22,7 @@ INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default='admin')
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default='admin')
 
 ADMIN_LOGIN_ID = env('ADMIN_LOGIN_ID', default='admin')
-ADMIN_LOGIN_PASSWORD = env('ADMIN_LOGIN_ID', default='admin')
+ADMIN_LOGIN_PASSWORD = env('ADMIN_LOGIN_PASSWORD', default='admin')
 
 INSTALLED_APPS = [
     # Sprint 2; make sure to check if we need or don't need admin rights
