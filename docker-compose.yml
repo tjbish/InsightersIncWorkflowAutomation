@@ -9,9 +9,9 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    env_file:
+      - .env
     environment:
-      - DEBUG=1
-      - SECRET_KEY=dev_secret_key_for_local_only
       - DATABASE_URL=postgres://postgres:postgres@db:5432/insighters_db
       - DJANGO_SETTINGS_MODULE=src.config.settings.local
 

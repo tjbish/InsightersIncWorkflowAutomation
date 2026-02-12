@@ -2,15 +2,44 @@
 # and observable when running on infrastructure like Google Cloud Run.
 
 from .base import *
+from google.cloud import secretmanager
 
 # Production settings
 DEBUG = False
 
-# Raise error if SECRET_KEY is missing in production
-if env('SECRET_KEY', default=None) is None:
-    raise RuntimeError("SECRET_KEY is missing in production environment!")
+# Function to fetch secret from Google Secret Manager
+def get_secret(secret_id: str, version_id: str = "latest") -> str:
+    """Fetch a secret from Google Cloud Secret Manager."""
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        raise ValueError("GOOGLE_CLOUD_PROJECT environment variable must be set.")
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
+    response = client.access_secret_version(name=name)
+    return response.payload.data.decode("UTF-8")
+
+# Map Django settings (keys) to Google Secret Manager IDs (values)
+SECRETS_MAPPING = {
+    "SECRET_KEY": "DJANGO_SECRET_KEY",
+    "SHAREFILE_API": "SHAREFILE_API",
+    "MONDAY_API": "MONDAY_API",
+    "SHAREFILE_CLIENT_ID": "SHAREFILE_CLIENT_ID",
+    "SHAREFILE_URI": "SHAREFILE_URI",
+}
+
+for setting_name, secret_id in SECRETS_MAPPING.items():
+    try:
+        globals()[setting_name] = get_secret(secret_id)
+    except Exception as e:
+        print(f"Warning: Could not fetch {secret_id} for {setting_name} from Secret Manager: {e}")
+        
+        # Critical check: If SECRET_KEY failed to load from GSM, ensure it exists in env
+        if setting_name == "SECRET_KEY":
+            # Check if base.py successfully found a key in the environment (using the name from base.py), otherwise fail
+            if env('DJANGO_SECRET_KEY', default=None) is None:
+                 raise RuntimeError(f"CRITICAL: SECRET_KEY is missing! Failed to fetch from Secret Manager and not found in environment.")
+
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -59,6 +88,3 @@ LOGGING = {
         'level': 'INFO',
     },
 }
-
-# CSRF Trusted Origins (Required for Django 4.0+ behind https proxy)
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])

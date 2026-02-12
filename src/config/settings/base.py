@@ -10,16 +10,22 @@ env = environ.Env()
 # Read .env file if it exists
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# NOTE: Change for PROD
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-prod')
+SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-fallback-key')
 
 DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
 # TODO: Remove default once temp IDs can be generated
 INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default='admin')
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default='admin')
+
+# Third Party API Settings
+SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
+SHAREFILE_API = env('SHAREFILE_API', default=None)
+SHAREFILE_URI = env('SHAREFILE_URI', default=None)
+MONDAY_API = env('MONDAY_API', default=None)
 
 INSTALLED_APPS = [
     # Sprint 2; make sure to check if we need or don't need admin rights
