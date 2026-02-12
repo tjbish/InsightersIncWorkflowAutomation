@@ -153,3 +153,7 @@
     Intake access control:
         - Business and Individual intake pages require login.
         - Temporary credentials are controlled by `INTAKE_LOGIN_ID` and `INTAKE_LOGIN_PASSWORD`.
+
+    Admin pages
+        - Admin Login: `/admin-login/`
+        - Admin Dashboard: `/dashboard/` 

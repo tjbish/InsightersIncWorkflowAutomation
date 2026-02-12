@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.views.decorators.debug import sensitive_variables
 
-from .forms import BusinessIntakeForm, PersonalIntakeForm, IntakeLoginForm
+from .forms import BusinessIntakeForm, PersonalIntakeForm, IntakeLoginForm, AdminLoginForm
 from .models import BusinessIntakeSubmission, PersonalIntakeSubmission
 
 
@@ -27,10 +27,29 @@ def require_intake_login(view_func):
 
     return _wrapped
 
+def validate_admin_login(login_id: str, password: str) -> bool:
+    # TODO: Replace with DB lookup when credentials are stored.
+    return login_id == settings.ADMIN_LOGIN_ID and password == settings.ADMIN_LOGIN_PASSWORD
+
+def require_admin_login(view_func):
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        allowed_path = request.session.get("admin_login_ok_for")
+        if allowed_path == request.path:
+            # One-time access after successful login to ensure login is required each visit.
+            request.session.pop("admin_login_ok_for", None)
+            return view_func(request, *args, **kwargs)
+
+        request.session["admin_login_next"] = request.path
+        return redirect("admin_login")
+
+    return _wrapped
+
 
 def home(request):
     return render(request, "home.html")
 
+@require_admin_login
 def admin_dashboard(request):
     return render(request, "admin.html")
 
@@ -203,3 +222,25 @@ def intake_login(request):
         form = IntakeLoginForm()
 
     return render(request, "intake_login.html", {"form": form})
+
+@sensitive_variables("login_id", "password")
+def admin_login(request):
+    if request.method == "POST":
+        form = AdminLoginForm(request.POST) # create class in form
+        if form.is_valid():
+            login_id = form.cleaned_data["login_id"]
+            password = form.cleaned_data["password"]
+
+            if validate_admin_login(login_id, password):
+                next_path = request.session.pop("admin_login_next", None)
+                if next_path:
+                    request.session["admin_login_ok_for"] = next_path
+                    return redirect(next_path)
+
+                return redirect("home")
+
+            form.add_error(None, "Invalid login ID or password.")
+    else:
+        form = AdminLoginForm()
+
+    return render(request, "admin_login.html", {"form": form})
