@@ -114,6 +114,7 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
+            
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             return HttpResponse("Thank you! We have received your information.")
