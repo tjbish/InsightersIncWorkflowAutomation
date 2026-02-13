@@ -104,7 +104,7 @@ def business_view(request):
 
                 # --- Payroll & tax id ---
                 accounting_software=data.get("accounting_software") or None,
-                has_payroll=bool(data.get("has_payroll")),
+                has_payroll=data.get("has_payroll", False),
                 num_employees=data.get("num_employees") or None,
 
                 payroll_id_state=data.get("payroll_id_state") or None,
@@ -188,7 +188,7 @@ def personal_view(request):
                 expenses=expense_str or None,
 
                 # --- Certification ---
-                certification=bool(data.get("certification")),
+                certification = data.get("certification", False),
                 client_signature=data["client_signature"],
                 date_signed=data["date_signed"],
             )
