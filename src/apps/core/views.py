@@ -19,7 +19,7 @@ def require_intake_login(view_func):
         allowed_path = request.session.get("intake_login_ok_for")
         if allowed_path == request.path:
             # One-time access after successful login to ensure login is required each visit.
-            request.session.pop("intake_login_ok_for", None)
+            # We do not pop here because we need the session to persist for the POST request.
             return view_func(request, *args, **kwargs)
 
         request.session["intake_login_next"] = request.path
@@ -97,8 +97,11 @@ def business_view(request):
             )
             
 
+            request.session.pop("intake_login_ok_for", None)
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             return HttpResponse("Thank you! We have received your information.")
+        else:
+            print(f"Business Form Validation Errors: {form.errors}")
     else:
         form = BusinessIntakeForm()
 
@@ -174,8 +177,11 @@ def personal_view(request):
                 date_signed=data["date_signed"],
             )
 
+            request.session.pop("intake_login_ok_for", None)
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             return HttpResponse("Thank you! Individual Intake received.")
+        else:
+            print(f"Personal Form Validation Errors: {form.errors}")
     else:
         form = PersonalIntakeForm()
 
