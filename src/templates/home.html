@@ -5,6 +5,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <title>Insighters Inc Workflow Automation</title>
   <style>
     .cta-button {
@@ -40,15 +42,15 @@
     <div style="width: 33.3333%; padding: 32px 32px 32px 64px;">
       <div style="text-align: left; max-width: 360px;">
         <a href="https://myinsighters.com/" style="display: inline-block;">
-          <img src="{% static " insightersLogo.jpg" %}" alt="Insighters Inc logo"
+          <img src="{% static 'insightersLogo.jpg' %}" alt="Insighters Inc logo"
             style="max-width: 500px; height: auto; margin-bottom: 16px;" />
         </a>
-        <h1 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation</h1>
+        <h2 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation</h2>
         <p style="margin: 0 0 24px;">Choose an intake path to get started.</p>
         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <a class="cta-button" href="/business">Business Intake</a>
-          <a href="/individual" class="cta-button">Individual Intake</a>
-          <a class="cta-button" href="/dashboard">Admin Dashboard</a>
+          <a class="btn btn-secondary" href="/business">Business Intake</a>
+          <a class="btn btn-secondary" href= "/individual">Individual Intake</a>
+          <a class="btn btn-light" href="/dashboard" style="padding: 6px 78px;">Admin Dashboard</a>
         </div>
       </div>
     </div>
