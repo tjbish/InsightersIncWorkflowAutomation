@@ -1,17 +1,64 @@
 from functools import wraps
+from datetime import timedelta
+import secrets
 
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.views.decorators.debug import sensitive_variables
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils import timezone
 
-from .forms import BusinessIntakeForm, PersonalIntakeForm, IntakeLoginForm, AdminLoginForm
-from .models import BusinessIntakeSubmission, PersonalIntakeSubmission
+from .forms import (
+    BusinessIntakeForm,
+    PersonalIntakeForm,
+    IntakeLoginForm,
+    AdminLoginForm,
+    TemporaryIntakeCredentialCreateForm,
+)
+from .models import (
+    BusinessIntakeSubmission,
+    PersonalIntakeSubmission,
+    TemporaryIntakeCredential,
+)
 
 
-def validate_intake_login(login_id: str, password: str) -> bool:
-    # TODO: Replace with DB lookup when credentials are stored.
-    return login_id == settings.INTAKE_LOGIN_ID and password == settings.INTAKE_LOGIN_PASSWORD
+def _path_to_form_type(path: str):
+    if path == "/business/":
+        return TemporaryIntakeCredential.BUSINESS
+    if path == "/individual/":
+        return TemporaryIntakeCredential.INDIVIDUAL
+    return None
+
+
+def _cleanup_expired_temp_credentials():
+    TemporaryIntakeCredential.objects.filter(expires_at__lte=timezone.now()).delete()
+
+
+def _generate_unique_intake_login_id():
+    for _ in range(10):
+        candidate = f"INT-{secrets.token_hex(4).upper()}"
+        if not TemporaryIntakeCredential.objects.filter(login_id=candidate).exists():
+            return candidate
+    raise RuntimeError("Unable to generate a unique intake login ID.")
+
+
+def authenticate_intake_login(login_id: str, password: str, next_path: str = None):
+    credential = TemporaryIntakeCredential.objects.filter(login_id=login_id).first()
+    if credential is None:
+        return None
+
+    expected_form_type = _path_to_form_type(next_path) if next_path else None
+    if expected_form_type and credential.form_type != expected_form_type:
+        return None
+
+    if not credential.is_valid_for_login():
+        return None
+
+    if not check_password(password, credential.password_hash):
+        return None
+
+    return credential
 
 def require_intake_login(view_func):
     @wraps(view_func)
@@ -36,8 +83,7 @@ def require_admin_login(view_func):
     def _wrapped(request, *args, **kwargs):
         allowed_path = request.session.get("admin_login_ok_for")
         if allowed_path == request.path:
-            # One-time access after successful login to ensure login is required each visit.
-            request.session.pop("admin_login_ok_for", None)
+            # Keep this through GET->POST flow so admin dashboard actions can submit.
             return view_func(request, *args, **kwargs)
 
         request.session["admin_login_next"] = request.path
@@ -47,11 +93,53 @@ def require_admin_login(view_func):
 
 
 def home(request):
+    request.session.pop("admin_login_ok_for", None)
     return render(request, "home.html")
 
 @require_admin_login
 def admin_dashboard(request):
-    return render(request, "admin.html")
+    # Currently cleans up expired credentials on dashboard startup, can disable this to maintain temp ID persistence in the DB
+    _cleanup_expired_temp_credentials()
+
+    generated_credential = None
+    if request.method == "POST":
+        form = TemporaryIntakeCredentialCreateForm(request.POST)
+        if form.is_valid():
+            expires_at = timezone.now() + timedelta(hours=24)
+            generated_password = secrets.token_urlsafe(12)
+            created_by_login_id = request.session.get("admin_login_id", "unknown-admin")
+            try:
+                login_id = _generate_unique_intake_login_id()
+            except RuntimeError:
+                form.add_error(None, "Unable to generate a unique login ID. Try again.")
+            else:
+                credential = TemporaryIntakeCredential.objects.create(
+                    login_id=login_id,
+                    password_hash=make_password(generated_password),
+                    form_type=form.cleaned_data["form_type"],
+                    client_email=form.cleaned_data["client_email"],
+                    created_by_login_id=created_by_login_id,
+                    expires_at=expires_at,
+                )
+                generated_credential = {
+                    "login_id": credential.login_id,
+                    "password": generated_password,
+                    "form_type": credential.get_form_type_display(),
+                    "expires_at": credential.expires_at,
+                    "client_email": credential.client_email,
+                }
+                form = TemporaryIntakeCredentialCreateForm()
+    else:
+        form = TemporaryIntakeCredentialCreateForm()
+
+    return render(
+        request,
+        "admin.html",
+        {
+            "create_credential_form": form,
+            "generated_credential": generated_credential,
+        },
+    )
 
 
 @sensitive_variables()  # helps prevent sensitive values showing up in debug output
@@ -207,7 +295,6 @@ def personal_view(request):
     return render(request, "personal_intake.html", {"form": form})
 
 
-# TODO Implement database storage of login_id and password when submitted (Logs users that actually use their ID/password to access forms)
 @sensitive_variables("login_id", "password")
 def intake_login(request):
     if request.method == "POST":
@@ -215,8 +302,12 @@ def intake_login(request):
         if form.is_valid():
             login_id = form.cleaned_data["login_id"]
             password = form.cleaned_data["password"]
+            next_path = request.session.get("intake_login_next")
 
-            if validate_intake_login(login_id, password):
+            credential = authenticate_intake_login(login_id, password, next_path=next_path)
+            if credential:
+                credential.used_at = timezone.now()
+                credential.save(update_fields=["used_at"])
                 next_path = request.session.pop("intake_login_next", None)
                 if next_path:
                     request.session["intake_login_ok_for"] = next_path
@@ -240,6 +331,7 @@ def admin_login(request):
 
             if validate_admin_login(login_id, password):
                 next_path = request.session.pop("admin_login_next", None)
+                request.session["admin_login_id"] = login_id
                 if next_path:
                     request.session["admin_login_ok_for"] = next_path
                     return redirect(next_path)

@@ -293,3 +293,17 @@ class AdminLoginForm(forms.Form):
         max_length=150,
         widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'})
     )
+
+
+class TemporaryIntakeCredentialCreateForm(forms.Form):
+    FORM_TYPE_CHOICES = [
+        ("business", "Business Form"),
+        ("individual", "Individual Form"),
+    ]
+
+    client_email = forms.EmailField(label="Client Email")
+    form_type = forms.ChoiceField(
+        label="Form Type",
+        choices=FORM_TYPE_CHOICES,
+        widget=forms.HiddenInput(),
+    )

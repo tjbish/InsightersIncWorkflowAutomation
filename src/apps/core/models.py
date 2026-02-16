@@ -126,3 +126,30 @@ class PersonalIntakeSubmission(models.Model):
 
     def __str__(self):
         return f"Personal Intake: {self.client_name} ({self.created_at.date()})"
+
+
+class TemporaryIntakeCredential(models.Model):
+    BUSINESS = "business"
+    INDIVIDUAL = "individual"
+    FORM_TYPE_CHOICES = [
+        (BUSINESS, "Business"),
+        (INDIVIDUAL, "Individual"),
+    ]
+
+    login_id = models.CharField(max_length=150, unique=True)
+    password_hash = models.CharField(max_length=255)
+    form_type = models.CharField(max_length=20, choices=FORM_TYPE_CHOICES)
+    client_email = models.EmailField()
+    created_by_login_id = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+
+    def is_valid_for_login(self):
+        from django.utils import timezone
+
+        now = timezone.now()
+        return self.used_at is None and self.expires_at > now
+
+    def __str__(self):
+        return f"{self.login_id} ({self.form_type})"

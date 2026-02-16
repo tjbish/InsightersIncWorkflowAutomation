@@ -47,14 +47,38 @@
         </a>
         <h2 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation Dashboard </h2>
         <div class="mt-4">
-          <label for="client-email" class="form-label">Client Email</label>
-          <input id="client-email" name="client_email" type="email" class="form-control" maxlength="100"
-            placeholder="client@example.com" />
-          <div class="d-grid gap-2 mt-3">
-            <button type="button" class="btn btn-secondary">Send Business Form</button>
-            <button type="button" class="btn btn-secondary">Send Individual Form</button>
-          </div>
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <label for="client-email" class="form-label">Client Email</label>
+            <input id="client-email" name="client_email" type="email" class="form-control" maxlength="100"
+              placeholder="client@example.com"
+              value="{{ create_credential_form.client_email.value|default_if_none:'' }}" />
+            {% if create_credential_form.client_email.errors %}
+            <div class="text-danger small mt-1">{{ create_credential_form.client_email.errors }}</div>
+            {% endif %}
+            {% if create_credential_form.non_field_errors %}
+            <div class="alert alert-danger mt-3 mb-0">{{ create_credential_form.non_field_errors }}</div>
+            {% endif %}
+            <div class="d-grid gap-2 mt-3">
+              <button type="submit" name="form_type" value="business" class="btn btn-secondary">Generate Business
+                Login</button>
+              <button type="submit" name="form_type" value="individual" class="btn btn-secondary">Generate Individual
+                Login</button>
+            </div>
+          </form>
         </div>
+        {% if generated_credential %}
+        <div class="alert alert-success mt-4 mb-0">
+          <div><strong>Temporary Login Created</strong></div>
+          <div>Form Type: {{ generated_credential.form_type }}</div>
+          <div>Client Email: {{ generated_credential.client_email }}</div>
+          <div>Login ID: <code>{{ generated_credential.login_id }}</code></div>
+          <div>Password: <code>{{ generated_credential.password }}</code></div>
+          <div>Expires At: {{ generated_credential.expires_at }}</div>
+          <div class="small mt-2">This credential is one-time use. Ensure the client is aware of the credential
+            expiration.</div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </main>
