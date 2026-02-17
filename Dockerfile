@@ -25,10 +25,10 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY . /app/
+COPY --chown=appuser:appgroup . /app/
 
-# Change ownership of the application files to the non-root user
-RUN chown -R appuser:appgroup /app
+# Ensure the non-root user owns the work directory and staticfiles
+RUN chown appuser:appgroup /app && mkdir -p /app/staticfiles && chown appuser:appgroup /app/staticfiles
 
 # Make the entrypoint script executable
 RUN chmod +x /app/scripts/entrypoint.sh
