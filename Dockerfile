@@ -7,6 +7,9 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Create a non-root user and group to run the application
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
 # Set work directory
 WORKDIR /app
 
@@ -24,11 +27,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . /app/
 
+# Change ownership of the application files to the non-root user
+RUN chown -R appuser:appgroup /app
+
 # Make the entrypoint script executable
 RUN chmod +x /app/scripts/entrypoint.sh
 
 # Expose port 8080 (Google Cloud Run default)
 EXPOSE 8080
+
+# Switch to the non-root user
+USER appuser
 
 # Set the entrypoint to run migrations before starting the server
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
