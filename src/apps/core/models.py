@@ -44,6 +44,11 @@ class BusinessIntakeSubmission(models.Model):
     bank_account_type = models.CharField(max_length=20, blank=True, null=True)
     bank_contact_name = models.CharField(max_length=100, blank=True, null=True)
     bank_contact_phone = models.CharField(max_length=20, blank=True, null=True)
+    
+    bank_name2 = models.CharField(max_length=100, blank=True, null=True)
+    bank_account_type2 = models.CharField(max_length=20, blank=True, null=True)
+    bank_contact_name2 = models.CharField(max_length=100, blank=True, null=True)
+    bank_contact_phone2 = models.CharField(max_length=20, blank=True, null=True)
 
     # --- Payroll & tax id ---
     accounting_software = models.CharField(max_length=100, blank=True, null=True)
@@ -51,7 +56,7 @@ class BusinessIntakeSubmission(models.Model):
     num_employees = models.IntegerField(blank=True, null=True)
 
     payroll_id_state = models.CharField(max_length=50, blank=True, null=True)
-    payroll_id_country = models.CharField(max_length=50, blank=True, null=True)
+    payroll_id_county = models.CharField(max_length=50, blank=True, null=True)
     payroll_id_city = models.CharField(max_length=50, blank=True, null=True)
     sales_tax_state = models.CharField(max_length=50, blank=True, null=True)
     sales_tax_county = models.CharField(max_length=50, blank=True, null=True)

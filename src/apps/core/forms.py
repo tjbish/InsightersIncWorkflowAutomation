@@ -9,6 +9,8 @@ import datetime
 
 # --------- Global Variables ---------
 
+ACCOUNT_TYPES = [('checking', 'Checking'), ('savings', 'Savings')]
+
 # Common Validators
 ssn_validator = RegexValidator(r'^(\d{3}-\d{2}-\d{4}|XXX-XX-XXXX)$', 'Enter SSN in XXX-XX-XXXX format.')
 zip_validator = RegexValidator(r'^\d{5}(?:-\d{4})?$', 'Enter a valid ZIP code.')
@@ -36,7 +38,7 @@ class BusinessIntakeForm(forms.Form):
         max_length=11, 
         min_length=11, 
         validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
     )
     owner1_ownership = forms.DecimalField(
         label="% of Ownership (1)", 
@@ -53,7 +55,7 @@ class BusinessIntakeForm(forms.Form):
         min_length=11, 
         required=False, 
         validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
     )
     owner2_ownership = forms.DecimalField(
         label="% of Ownership (2)", 
@@ -84,7 +86,7 @@ class BusinessIntakeForm(forms.Form):
         ('proprietorship', 'Proprietorship'),
         ('partnership', 'Partnership'),
         ('llc', 'LLC'),
-        ('c_corp', 'C-Corp'),
+        ('corp', 'Corp'),
         ('s_corp', 'S-Corp'),
     ]
     business_type = forms.ChoiceField(label="Type of Business", choices=BUSINESS_TYPES, widget=forms.RadioSelect)
@@ -102,20 +104,25 @@ class BusinessIntakeForm(forms.Form):
     fiscal_year_end = forms.CharField(label="If Fiscal, Year Ending Date", required=False)
 
     # Section 5: Banking Information
-    bank_name = forms.CharField(label="Bank Name", max_length=100, required=False)
-    ACCOUNT_TYPES = [('checking', 'Checking'), ('savings', 'Savings')]
-    bank_account_type = forms.ChoiceField(label="Account Type", choices=ACCOUNT_TYPES, required=False)
-    bank_account_number = forms.CharField(label="Account Number", max_length=30, required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'off'}))
-    bank_contact_name = forms.CharField(label="Bank Contact Person", max_length=100, required=False)
-    bank_contact_phone = forms.CharField(label="Bank Contact Phone", max_length=20, required=False, validators=[phone_validator])
+    bank_name = forms.CharField(label="Bank Name (1)", max_length=100, required=False)
+    bank_account_type = forms.ChoiceField(label="Account Type (1)", choices=ACCOUNT_TYPES, required=False)
+    bank_account_number = forms.CharField(label="Account Number (1)", max_length=30, required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'off'}, render_value=True))
+    bank_contact_name = forms.CharField(label="Bank Contact Person (1)", max_length=100, required=False)
+    bank_contact_phone = forms.CharField(label="Bank Contact Phone (1)", max_length=20, required=False, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
+    
+    bank_name2 = forms.CharField(label="Bank Name (2)", max_length=100, required=False)
+    bank_account_type2 = forms.ChoiceField(label="Account Type (2)", choices=ACCOUNT_TYPES, required=False)
+    bank_account_number2 = forms.CharField(label="Account Number (2)", max_length=30, required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'off'}, render_value=True))
+    bank_contact_name2 = forms.CharField(label="Bank Contact Person (2)", max_length=100, required=False)
+    bank_contact_phone2 = forms.CharField(label="Bank Contact Phone (2)", max_length=20, required=False, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
 
     # Section 6: Payroll & Tax ID
-    accounting_software = forms.CharField(label="Current Accounting Software", max_length=100, required=False)
+    accounting_software = forms.CharField(label="Current Accounting Software (if any)", max_length=100, required=False)
     has_payroll = forms.BooleanField(label="Payroll? (Yes/No)", required=False)
     num_employees = forms.IntegerField(label="Number of employees", required=False, min_value=0)
     
     payroll_id_state = forms.CharField(label="Payroll Number (State)", max_length=50, required=False)
-    payroll_id_country = forms.CharField(label="Payroll Number (Country)", max_length=50, required=False)
+    payroll_id_county = forms.CharField(label="Payroll Number (County)", max_length=50, required=False)
     payroll_id_city = forms.CharField(label="Payroll Number (City)", max_length=50, required=False)
     sales_tax_state = forms.CharField(label="Sales Tax Number (State)", max_length=50, required=False)
     sales_tax_county = forms.CharField(label="Sales Tax Number (County)", max_length=50, required=False)
@@ -149,7 +156,7 @@ class PersonalIntakeForm(forms.Form):
     client_dob = forms.DateField(label="Date of Birth", widget=forms.DateInput(attrs={'type': 'date'}))
     client_ssn = forms.CharField(
         label="SSN", max_length=11, min_length=11, validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
     )
     client_occupation = forms.CharField(label="Occupation", max_length=100)
     
@@ -163,7 +170,7 @@ class PersonalIntakeForm(forms.Form):
     spouse_dob = forms.DateField(label="Spouse DOB", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     spouse_ssn = forms.CharField(
         label="Spouse SSN", max_length=11, min_length=11, required=False, validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
     )
     spouse_occupation = forms.CharField(label="Spouse Occupation", max_length=100, required=False)
     spouse_dl = forms.CharField(label="Spouse DL #", max_length=50, required=False)
@@ -195,34 +202,34 @@ class PersonalIntakeForm(forms.Form):
     dep1_dob = forms.DateField(label="DOB", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     dep1_ssn = forms.CharField(
         label="SSN", max_length=11, min_length=11, required=False, validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
         )
     dep1_rel = forms.CharField(label="Relationship", required=False)
-    dep1_months = forms.IntegerField(label="Months in Home", required=False, min_value=0, max_value=12)
+    dep1_months = forms.IntegerField(label="Months Lived in Home", required=False, min_value=0, max_value=12)
 
     # Dependent 2
     dep2_name = forms.CharField(label="Dependent 2 Name", required=False)
     dep2_dob = forms.DateField(label="DOB", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     dep2_ssn = forms.CharField(
         label="SSN", max_length=11, min_length=11, required=False, validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
         )
     dep2_rel = forms.CharField(label="Relationship", required=False)
-    dep2_months = forms.IntegerField(label="Months in Home", required=False, min_value=0, max_value=12)
+    dep2_months = forms.IntegerField(label="Months Lived in Home", required=False, min_value=0, max_value=12)
     
      # Dependent 3
     dep3_name = forms.CharField(label="Dependent 3 Name", required=False)
     dep3_dob = forms.DateField(label="DOB", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     dep3_ssn = forms.CharField(
         label="SSN", max_length=11, min_length=11, required=False, validators=[ssn_validator],
-        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'})
+        widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
         )
     dep3_rel = forms.CharField(label="Relationship", required=False)
-    dep3_months = forms.IntegerField(label="Months in Home", required=False, min_value=0, max_value=12)
+    dep3_months = forms.IntegerField(label="Months Lived in Home", required=False, min_value=0, max_value=12)
 
     # --- Section 5: Income & Expense Checkboxes ---
     INCOME_SOURCES = [
-        ('wages', 'Wages/Income'), ('pension', 'Pension Income'), ('gambling', 'Gambling Winnings'),
+        ('income', 'Income'), ('pension', 'Pension Income'), ('gambling', 'Gambling Winnings'),
         ('business', 'Business Income'), ('ss', 'Social Security'), ('unemployment', 'Unemployment'),
         ('other', 'Other')
     ]
@@ -248,7 +255,7 @@ class PersonalIntakeForm(forms.Form):
         "I certify that the above information is true and accurate and I give Insighter's, Inc., "
         "the authority to prepare my Federal/State Tax return for the tax year stated above. "
         "DISCLAIMER: PLEASE BE ADVISED A $45 PREPARATION FEE WILL BE ASSESSED FOR A PROCESSED "
-        "TAX RETURN IF THE CLIENT DECIDES NOT TO ALLOW OUR OFFICE TO COMPLETE THE RETURN."
+        "TAX RETURN AND CLIENT DECIDES NOT TO ALLOW OUR OFFICE TO COMPLETE YOUR TAX RETURN."
     )
     
     certification = forms.BooleanField(

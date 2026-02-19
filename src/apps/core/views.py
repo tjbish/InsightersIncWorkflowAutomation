@@ -189,6 +189,11 @@ def business_view(request):
                 bank_account_type=data.get("bank_account_type") or None,
                 bank_contact_name=data.get("bank_contact_name") or None,
                 bank_contact_phone=data.get("bank_contact_phone") or None,
+                
+                bank_name2=data.get("bank_name2") or None,
+                bank_account_type2=data.get("bank_account_type2") or None,
+                bank_contact_name2=data.get("bank_contact_name2") or None,
+                bank_contact_phone2=data.get("bank_contact_phone2") or None,
 
                 # --- Payroll & tax id ---
                 accounting_software=data.get("accounting_software") or None,
@@ -196,7 +201,7 @@ def business_view(request):
                 num_employees=data.get("num_employees") or None,
 
                 payroll_id_state=data.get("payroll_id_state") or None,
-                payroll_id_country=data.get("payroll_id_country") or None,
+                payroll_id_county=data.get("payroll_id_county") or None,
                 payroll_id_city=data.get("payroll_id_city") or None,
                 sales_tax_state=data.get("sales_tax_state") or None,
                 sales_tax_county=data.get("sales_tax_county") or None,

@@ -179,6 +179,24 @@ NOTE: Look into adding front end form logic in addition to backend logic for val
                         </div>
                     </div>
 
+                     <div class="row">
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_name2 %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_account_type2 %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_account_number2 %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            {% bootstrap_field form.bank_contact_name2 %}
+                            {% bootstrap_field form.bank_contact_phone2 %}
+                        </div>
+                    </div>
+
                     <h4 class="section-header">Payroll & Tax IDs</h4>
                     
                     <div class="row align-items-center">
@@ -203,7 +221,7 @@ NOTE: Look into adding front end form logic in addition to backend logic for val
                             {% bootstrap_field form.payroll_id_state %}
                         </div>
                         <div class="col-md-6">
-                            {% bootstrap_field form.payroll_id_country %}
+                            {% bootstrap_field form.payroll_id_county %}
                         </div>
                         <div class="col-md-6">
                             {% bootstrap_field form.payroll_id_city %}
