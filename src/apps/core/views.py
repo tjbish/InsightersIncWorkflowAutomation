@@ -44,6 +44,13 @@ def _generate_unique_intake_login_id():
 
 
 def authenticate_intake_login(login_id: str, password: str, next_path: str = None):
+    # Env bypass check
+    if (
+        login_id == settings.INTAKE_LOGIN_ID
+        and password == settings.INTAKE_LOGIN_PASSWORD
+    ):
+        return "ENV_BYPASS"
+
     credential = TemporaryIntakeCredential.objects.filter(login_id=login_id).first()
     if credential is None:
         return None
@@ -208,8 +215,20 @@ def business_view(request):
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
             
+            is_bypass = request.session.get("intake_is_env_bypass", False)
 
+            if not is_bypass:
+                login_id = request.session.get("intake_login_id")
+
+                if login_id:
+                    credential = TemporaryIntakeCredential.objects.filter(login_id=login_id).first()
+                    if credential:
+                        credential.used_at = timezone.now()
+                        credential.save(update_fields=["used_at"])
+
+            request.session.pop("intake_login_id", None)
             request.session.pop("intake_login_ok_for", None)
+            request.session.pop("intake_is_env_bypass", None)
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             return HttpResponse("Thank you! We have received your information.")
         else:
@@ -289,7 +308,20 @@ def personal_view(request):
                 date_signed=data["date_signed"],
             )
 
+            is_bypass = request.session.get("intake_is_env_bypass", False)
+
+            if not is_bypass:
+                login_id = request.session.get("intake_login_id")
+
+                if login_id:
+                    credential = TemporaryIntakeCredential.objects.filter(login_id=login_id).first()
+                    if credential:
+                        credential.used_at = timezone.now()
+                        credential.save(update_fields=["used_at"])
+
+            request.session.pop("intake_login_id", None)
             request.session.pop("intake_login_ok_for", None)
+            request.session.pop("intake_is_env_bypass", None)
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             return HttpResponse("Thank you! Individual Intake received.")
         else:
@@ -311,11 +343,16 @@ def intake_login(request):
 
             credential = authenticate_intake_login(login_id, password, next_path=next_path)
             if credential:
-                credential.used_at = timezone.now()
-                credential.save(update_fields=["used_at"])
                 next_path = request.session.pop("intake_login_next", None)
+
+                if credential == "ENV_BYPASS":
+                    request.session["intake_login_ok_for"] = next_path
+                    request.session["intake_is_env_bypass"] = True
+                    return redirect(next_path)
+
                 if next_path:
                     request.session["intake_login_ok_for"] = next_path
+                    request.session["intake_login_id"] = credential.login_id
                     return redirect(next_path)
 
                 return redirect("home")
