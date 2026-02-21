@@ -15,6 +15,7 @@ ACCOUNT_TYPES = [('checking', 'Checking'), ('savings', 'Savings')]
 ssn_validator = RegexValidator(r'^(\d{3}-\d{2}-\d{4}|XXX-XX-XXXX)$', 'Enter SSN in XXX-XX-XXXX format.')
 zip_validator = RegexValidator(r'^\d{5}(?:-\d{4})?$', 'Enter a valid ZIP code.')
 phone_validator = RegexValidator(r'^\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$', 'Enter a valid phone number.')
+fin_validator = RegexValidator(r'^(\d{2}-\d{7})$', 'Enter FIN in XX-XXXXXXX format.')
 
 # US States Selector
 US_STATES = [
@@ -32,16 +33,16 @@ US_STATES = [
 
 class BusinessIntakeForm(forms.Form):
     #Section 1: Owner Information
-    owner1_name = forms.CharField(label="Owner's Name (1)", max_length=100)
+    owner1_name = forms.CharField(label="Owner's Name (1)*", max_length=100)
     owner1_ssn = forms.CharField(
-        label="SSN (1)", 
+        label="SSN (1)*", 
         max_length=11, 
         min_length=11, 
         validators=[ssn_validator],
         widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
     )
     owner1_ownership = forms.DecimalField(
-        label="% of Ownership (1)", 
+        label="% of Ownership (1)*", 
         max_digits=5, 
         decimal_places=2,
         min_value=0,
@@ -67,31 +68,51 @@ class BusinessIntakeForm(forms.Form):
     )
 
     # Section 2: Business Contact Info
-    business_name = forms.CharField(label="Business Name", max_length=200)
-    fin_number = forms.CharField(label="FIN (Federal ID Number)", max_length=50)
-    email = forms.EmailField(label="E-mail Address") # EmailValidator built into field, no need to have a second EmailValidator
+    business_name = forms.CharField(label="Business Name*", max_length=200)
+    fin_number = forms.CharField(label="FIN", min_length=9, max_length=10, validators=[fin_validator], widget=forms.TextInput(attrs={'placeholder': 'XX-XXXXXXX'}), required=False)
+    email = forms.EmailField(label="E-mail Address*") # EmailValidator built into field, no need to have a second EmailValidator
     
-    address = forms.CharField(label="Address", max_length=200)
-    city = forms.CharField(label="City", max_length=100)
+    address = forms.CharField(label="Address*", max_length=200)
+    city = forms.CharField(label="City*", max_length=100)
     
-    state = forms.ChoiceField(label="State", choices=US_STATES)
-    zip_code = forms.CharField(label="Zip Code", max_length=10, validators=[zip_validator])
+    state = forms.ChoiceField(label="State*", choices=US_STATES)
+    zip_code = forms.CharField(label="Zip Code*", max_length=10, validators=[zip_validator])
     
-    phone_number = forms.CharField(label="Phone Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
+    phone_number = forms.CharField(label="Phone Number*", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
     cell_number = forms.CharField(label="Cell Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), required=False, validators=[phone_validator])
     fax_number = forms.CharField(label="Fax Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), required=False, validators=[phone_validator])
 
     # Section 3: Business Type & History
-    BUSINESS_TYPES = [
+    BUSINESS_STRUCTURES = [
         ('proprietorship', 'Proprietorship'),
         ('partnership', 'Partnership'),
         ('llc', 'LLC'),
         ('corp', 'Corp'),
         ('s_corp', 'S-Corp'),
     ]
-    business_type = forms.ChoiceField(label="Type of Business", choices=BUSINESS_TYPES, widget=forms.RadioSelect)
-    date_established = forms.DateField(label="Date Established", widget=forms.DateInput(attrs={'type': 'date'}))
-    date_last_return = forms.DateField(label="Date last tax return filed", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
+    
+    BUSINESS_TYPES = [
+        ('', 'Select Business Type'),
+        ('retail', 'Retail'),
+        ('service', 'Service / Consulting'),
+        ('manufacturing', 'Manufacturing'),
+        ('construction', 'Construction / Trades'),
+        ('healthcare', 'Healthcare / Medical'),
+        ('real_estate', 'Real Estate / Property Management'),
+        ('food_beverage', 'Food & Beverage / Restaurant'),
+        ('technology', 'Technology / Software'),
+        ('ecommerce', 'E-Commerce / Online Retail'),
+        ('transportation', 'Transportation / Logistics'),
+        ('agriculture', 'Agriculture / Farming'),
+        ('non_profit', 'Non-Profit / Organization'),
+        ('other', 'Other'),
+        ('not_sure', 'Not Sure'),
+    ]
+    
+    business_type = forms.ChoiceField(label="Type of Business*", choices=BUSINESS_TYPES, required=True)
+    business_structure = forms.ChoiceField(label="Business Structure*", choices=BUSINESS_STRUCTURES, widget=forms.RadioSelect)
+    date_established = forms.DateField(label="Date Established*", widget=forms.DateInput(attrs={'type': 'date'}))
+    date_last_return = forms.DateField(label="Date last tax return filed*", widget=forms.DateInput(attrs={'type': 'date'}))
 
     # Section 4: Financial History
     sales_yr1 = forms.DecimalField(label="Sales: First Yr ($)", required=False, min_value=0)
@@ -100,8 +121,8 @@ class BusinessIntakeForm(forms.Form):
     sales_current = forms.DecimalField(label="Sales: Current Yr ($)", required=False, min_value=0)
 
     ACCOUNTING_PERIODS = [('calendar', 'Calendar Yr'), ('fiscal', 'Fiscal Yr')]
-    accounting_period = forms.ChoiceField(label="Accounting Period", choices=ACCOUNTING_PERIODS, widget=forms.RadioSelect)
-    fiscal_year_end = forms.CharField(label="If Fiscal, Year Ending Date", required=False)
+    accounting_period = forms.ChoiceField(label="Accounting Period*", choices=ACCOUNTING_PERIODS, widget=forms.RadioSelect)
+    fiscal_year_end = forms.DateField(label="If Fiscal, Year Ending Date", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
 
     # Section 5: Banking Information
     bank_name = forms.CharField(label="Bank Name (1)", max_length=100, required=False)
@@ -152,13 +173,13 @@ class PersonalIntakeForm(forms.Form):
     )
 
     # Section 1: Client Information
-    client_name = forms.CharField(label="Client Name", max_length=100)
-    client_dob = forms.DateField(label="Date of Birth", widget=forms.DateInput(attrs={'type': 'date'}))
+    client_name = forms.CharField(label="Client Name*", max_length=100)
+    client_dob = forms.DateField(label="Date of Birth*", widget=forms.DateInput(attrs={'type': 'date'}))
     client_ssn = forms.CharField(
-        label="SSN", max_length=11, min_length=11, validators=[ssn_validator],
+        label="SSN*", max_length=11, min_length=11, validators=[ssn_validator],
         widget=forms.PasswordInput(attrs={'placeholder': 'XXX-XX-XXXX', 'autocomplete': 'off'}, render_value=True)
     )
-    client_occupation = forms.CharField(label="Occupation", max_length=100)
+    client_occupation = forms.CharField(label="Occupation*", max_length=100)
     
     # Driver's License Info
     client_dl = forms.CharField(label="Driver's License #", max_length=50, required=False)
@@ -178,15 +199,15 @@ class PersonalIntakeForm(forms.Form):
     spouse_dl_issued = forms.DateField(label="Spouse DL Issued", widget=forms.DateInput(attrs={'type': 'date'}), required=False)
 
     # Section 3: Contact & Filing Info
-    address = forms.CharField(label="Home Address", max_length=200)
-    city = forms.CharField(label="City", max_length=100)
+    address = forms.CharField(label="Home Address*", max_length=200)
+    city = forms.CharField(label="City*", max_length=100)
     
-    state = forms.ChoiceField(label="State", choices=US_STATES)
-    zip_code = forms.CharField(label="Zip Code", max_length=10, validators=[zip_validator])
+    state = forms.ChoiceField(label="State*", choices=US_STATES)
+    zip_code = forms.CharField(label="Zip Code*", max_length=10, validators=[zip_validator])
     
-    phone_number = forms.CharField(label="Phone Number", validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}))
+    phone_number = forms.CharField(label="Phone Number*", validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}))
     cell_number = forms.CharField(label="Cell Phone", required=False, validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}))
-    email = forms.EmailField(label="Email Address")
+    email = forms.EmailField(label="Email Address*")
 
     FILING_STATUS_CHOICES = [
         ('single', 'Single'),
@@ -194,7 +215,7 @@ class PersonalIntakeForm(forms.Form):
         ('mfs', 'Married Filing Separated'),
         ('hoh', 'Head of Household'),
     ]
-    filing_status = forms.ChoiceField(label="Filing Status", choices=FILING_STATUS_CHOICES, widget=forms.RadioSelect)
+    filing_status = forms.ChoiceField(label="Filing Status*", choices=FILING_STATUS_CHOICES, widget=forms.RadioSelect)
 
     # Section 4: Dependents
     # Dependent 1
@@ -239,6 +260,12 @@ class PersonalIntakeForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         required=False
     )
+    income_other = forms.CharField(
+        label="If Other, please specify",
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={'placeholder': 'Specify other income source'})
+    )
 
     EXPENSE_SOURCES = [
         ('education', 'Educational Expense'), ('business_exp', 'Business Expense'), ('other_exp', 'Other')
@@ -248,6 +275,12 @@ class PersonalIntakeForm(forms.Form):
         choices=EXPENSE_SOURCES,
         widget=forms.CheckboxSelectMultiple,
         required=False
+    )
+    expenses_other = forms.CharField(
+        label="If Other, please specify",
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={'placeholder': 'Specify other expense'})
     )
     
     # Section 6: Certification & Signature
@@ -265,13 +298,13 @@ class PersonalIntakeForm(forms.Form):
     )
     
     client_signature = forms.CharField(
-        label="Client's Signature (Type Full Name)",
+        label="Client's Signature (Type Full Name)*",
         max_length=100,
         help_text="By typing your name here, you are electronically signing this document."
     )
     
     date_signed = forms.DateField(
-        label="Date",
+        label="Date*",
         widget=forms.DateInput(attrs={'type': 'date'}),
         required=True
     )

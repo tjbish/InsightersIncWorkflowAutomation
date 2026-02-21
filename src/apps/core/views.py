@@ -179,6 +179,7 @@ def business_view(request):
 
                 # --- Business type & history ---
                 business_type=data["business_type"],
+                business_structure=data["business_structure"],
                 date_established=data["date_established"],
                 date_last_return=data.get("date_last_return") or None,
 
@@ -248,8 +249,15 @@ def personal_view(request):
             data = form.cleaned_data
 
             # MultipleChoiceField returns a python list -> store as "wages,pension,ss"
-            income_str = ",".join(data.get("income_sources", []))
-            expense_str = ",".join(data.get("expenses", []))
+            income_list = data.get("income_sources", [])
+            if data.get("income_other"):
+                income_list.append(f"{data['income_other']}")
+            income_str = ",".join(income_list)
+
+            expense_list = data.get("expenses", [])
+            if data.get("expenses_other"):
+                expense_list.append(f"{data['expenses_other']}")
+            expense_str = ",".join(expense_list)
 
             PersonalIntakeSubmission.objects.create(
                 # --- Filing details ---

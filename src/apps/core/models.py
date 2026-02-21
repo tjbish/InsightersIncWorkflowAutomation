@@ -13,7 +13,7 @@ class BusinessIntakeSubmission(models.Model):
 
     # --- Business contact info ---
     business_name = models.CharField(max_length=200)
-    fin_number = models.CharField(max_length=50)
+    fin_number = models.CharField(max_length=50, blank=True, null=True)
     email = models.EmailField()
 
     address = models.CharField(max_length=200)
@@ -26,7 +26,8 @@ class BusinessIntakeSubmission(models.Model):
     fax_number = models.CharField(max_length=20, blank=True, null=True)
 
     # --- Business type & history ---
-    business_type = models.CharField(max_length=20)
+    business_type = models.CharField(max_length=25)
+    business_structure = models.CharField(max_length=20, blank=True, null=True)
     date_established = models.DateField()
     date_last_return = models.DateField(blank=True, null=True)
 
@@ -37,7 +38,7 @@ class BusinessIntakeSubmission(models.Model):
     sales_current = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
 
     accounting_period = models.CharField(max_length=10)
-    fiscal_year_end = models.CharField(max_length=50, blank=True, null=True)
+    fiscal_year_end = models.DateField(blank=True, null=True)
 
     # --- Banking info (NO ACCOUNT NUMBER STORED) ---
     bank_name = models.CharField(max_length=100, blank=True, null=True)

@@ -145,6 +145,7 @@
                                 <div class="card-header bg-light fw-bold">Did you or your spouse collect?</div>
                                 <div class="card-body">
                                     {% bootstrap_field form.income_sources show_label=False %}
+                                    {% bootstrap_field form.income_other %}
                                 </div>
                             </div>
                         </div>
@@ -153,6 +154,7 @@
                                 <div class="card-header bg-light fw-bold">Did you or your spouse pay?</div>
                                 <div class="card-body">
                                     {% bootstrap_field form.expenses show_label=False %}
+                                    {% bootstrap_field form.expenses_other %}
                                 </div>
                             </div>
                         </div>
