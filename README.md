@@ -1,79 +1,211 @@
-# All files short explanation
-    Root Files:
-        README.md – High-level overview of the project, setup instructions, and deployment notes for Google Cloud.
+# Insighters Inc Workflow Automation
 
-        .gitignore – Specifies files and directories that should not be tracked by Git (virtual envs, secrets, build artifacts).
+Django application for collecting business and individual intake data with gated client access and an admin dashboard for generating temporary intake credentials.
 
-        .dockerignore – Excludes unnecessary files from the Docker build context to keep images small and secure.
+## Tech Stack
 
-        manage.py – Django’s command-line utility for administrative tasks such as running the server and migrations.
+- Python 3
+- Django 4.2
+- PostgreSQL via `DATABASE_URL`
+- Bootstrap 5 templates
+- Google Secret Manager support for production
+- Optional Docker / Google Cloud deployment files included
 
-        requirements.txt – Lists all Python dependencies required to run the application in any environment.
+## Repository Structure
 
-        gunicorn.conf.py – Configuration file defining Gunicorn runtime settings for production deployment.
+- `src/apps/core/` - Main app (forms, views, models, routes, tests)
+- `src/templates/` - HTML templates (`home`, `admin`, login pages, intake forms)
+- `src/static/` - Static assets (logo/background)
+- `src/config/settings/` - `base.py`, `local.py`, `production.py`
+- `GraphQLQueryExample/` - Example standalone monday.com GraphQL script
+- `docker-compose.yml`, `Dockerfile`, `app.yaml`, `cloudbuild.yaml` - Container/deployment support
 
-        Dockerfile – Defines how the Django application is containerized for deployment on Google Cloud.
+## Current Application Functionality
 
-        cloudbuild.yaml – Describes the CI/CD pipeline steps used by Google Cloud Build to build and deploy the app.
+### Routes
 
-        app.yaml – Google App Engine configuration specifying runtime, environment variables, and service settings.
+- `/` - Home page
+- `/business/` - Business intake form (requires intake login)
+- `/individual/` - Personal intake form (requires intake login)
+- `/intake-login/` - Client intake login page
+- `/admin-login/` - Admin login page
+- `/dashboard/` - Admin dashboard (requires admin login)
+- `/admin/` - Django admin
 
-    Django project config:
-        src/config/init.py – Marks the config directory as a Python package.
+### Access Control and Login Flow
 
-        src/config/urls.py – Defines the URL routing table that maps request paths to Django views.
+- Business and individual intake pages are protected by `@require_intake_login`.
+- Client intake login validates against `TemporaryIntakeCredential` records in the database.
+- Temporary credentials are:
+  - Form-scoped (`business` or `individual`)
+  - Expiration-based (`expires_at`)
+  - One-time use (`used_at` is set on successful login)
+- Admin dashboard is protected by `@require_admin_login`.
+- Admin login currently validates using environment variables `ADMIN_LOGIN_ID` and `ADMIN_LOGIN_PASSWORD`.
 
-        src/config/wsgi.py – Entry point for WSGI-compatible servers to serve the Django application.
+### Admin Dashboard (Credential Generation)
 
-        src/config/asgi.py – Entry point for ASGI-compatible servers supporting async features.
+From `/dashboard/`, admin can generate a temporary login for:
 
-        src/config/settings/ – Contains environment-specific Django configuration modules.
+- Business intake
+- Individual intake
 
-    Settings files:
-        src/config/settings/init.py – Marks the settings directory as a Python package.
+Generation behavior:
 
-        src/config/settings/base.py – Holds shared Django settings common to all environments.
+- Creates unique login ID (`INT-XXXXXXXX` style)
+- Creates random password (shown once in UI)
+- Stores hashed password (`make_password`) in DB
+- Stores `client_email`, `form_type`, `created_by_login_id`, `expires_at`
+- Cleans up expired temporary credentials every time dashboard is accessed
 
-        src/config/settings/local.py – Overrides base settings for local development and debugging.
+### Intake Data Capture
 
-        src/config/settings/production.py – Overrides base settings with security and performance settings for production.
+#### Business Intake
 
-    Django apps:
-        src/apps/ – Container directory for all Django applications used by the project.
+Saved to `BusinessIntakeSubmission`.
 
-        src/apps/exampleApp.py - An example app placeholder to ensure correct folder structure.
+- SSNs are accepted/validated in form but not stored.
+- Bank account number is accepted/validated but not stored.
 
-        src/apps/core/ – Primary application containing core business logic and views.
+#### Personal Intake
 
-    Templates & static assets:
-        templates/ – Stores Django HTML templates used to render dynamic pages.
+Saved to `PersonalIntakeSubmission`.
 
-        src/static/ – Holds static files such as CSS, JavaScript, and images collected for deployment.
+- SSNs are accepted/validated in form but not stored.
+- Multi-select fields are stored as comma-separated strings.
 
-    Scripts:
-        scripts/ – Contains helper scripts used during container startup and deployment.
+### Form Validation
 
-        scripts/entrypoint.sh – Runs database migrations, static collection, and starts the application server.
+Forms include validation for:
 
-        scripts/deploy.sh – Automates deployment commands to Google Cloud services.
+- SSN format (`XXX-XX-XXXX`)
+- ZIP code format
+- Phone number format
+- Numeric ranges (ownership %, months in home, etc.)
+- Required certification/signature fields for personal intake
 
-        scripts/init_gcp.sh - Initializes the GCP project.
-    
-    Tests:
-        tests/ – Contains automated tests used to verify application correctness and prevent regressions.
+## Data Models (Core)
 
-    GraphQLQueryExample: (See monday-client-writer (GraphQLQuery.py) section below)
-        GraphQLQueryExample/config.json - Contains configuration information for a sample GraphQLQuery python pipeline program.
-        GraphQLQueryExample/GraphQLQuery.py - Python code template for sending read and update queries to/from a GraphQL API (Monday.com).
+- `BusinessIntakeSubmission`
+- `PersonalIntakeSubmission`
+- `TemporaryIntakeCredential`
 
-# Google Cloud Information
-    OPTIONAL FILES: 
-    - gunicorn.conf.py  (Cloud Run)
-    - cloudbuild.yaml   (Cloud Build CI/CD)
-    - app.yaml          (App Engine Standard/Flex)
+Migrations currently present:
 
-    WE MAY KEEP ONE OR ALL OF THE ABOVE DEPENDING ON GOOGLE CLOUD DEPLOYMENT IMPLEMENTATION
+- `0001_initial.py`
+- `0002_temporaryintakecredential.py`
 
+## Environment Variables
+
+Configured in `src/config/settings/base.py` and `src/config/settings/production.py`.
+
+### Required
+
+- `DATABASE_URL`
+
+### Common
+
+- `DJANGO_SECRET_KEY`
+- `DEBUG`
+- `ALLOWED_HOSTS`
+- `CSRF_TRUSTED_ORIGINS`
+- `ADMIN_LOGIN_ID`
+- `ADMIN_LOGIN_PASSWORD`
+
+### Optional Third-Party
+
+- `SHAREFILE_CLIENT_ID`
+- `SHAREFILE_API`
+- `SHAREFILE_URI`
+- `MONDAY_API`
+
+### Production Secret Manager
+
+`production.py` can pull secrets from Google Secret Manager using:
+
+- `GOOGLE_CLOUD_PROJECT`
+
+Secret mapping is defined in `SECRETS_MAPPING`.
+
+## Local Development
+
+1. Create and activate a virtual environment.
+2. Install dependencies:
+   - `pip install -r requirements.txt`
+3. Create `.env` at repository root and set at least `DATABASE_URL`.
+4. Run migrations:
+   - `python manage.py migrate`
+5. Start server:
+   - `python manage.py runserver`
+
+## Running Tests
+
+Core form tests exist in:
+
+- `src/apps/core/tests/test_business_forms.py`
+- `src/apps/core/tests/test_personal_forms.py`
+
+Run all tests:
+
+- `python manage.py test`
+
+Run only core tests:
+
+- `python manage.py test src.apps.core.tests`
+
+## Deployment Notes
+
+This repo includes deployment artifacts for Google Cloud and containers:
+
+- `Dockerfile`
+- `docker-compose.yml`
+- `app.yaml`
+- `cloudbuild.yaml`
+- `gunicorn.conf.py`
+
+Choose the files relevant to your deployment target (Cloud Run, App Engine, etc.).
+
+## Known Limitations / In-Progress Areas
+
+- Admin authentication is still environment-variable based (not DB-backed users).
+- Temporary credential cleanup currently runs on dashboard access (not scheduled worker/cron).
+- Some TODOs remain in form/security comments for additional hardening.
+
+# Local development (Django)
+    This project uses environment variables loaded from a `.env` file at the repo root.
+    A template is provided as `.env.example` (copy it to `.env` for local use).
+
+    ## Required environment variables
+        - DATABASE_URL (required, no sqlite fallback configured)
+        - DJANGO_SETTINGS_MODULE (optional; defaults to src.config.settings.local in manage.py)
+        - SECRET_KEY (optional for local; defaults in local settings)
+        - DEBUG (optional for local; defaults in local settings)
+
+    ## Additional environment variables
+        - INTAKE_LOGIN_ID (optional; defaults to admin)
+        - INTAKE_LOGIN_PASSWORD (optional; defaults to admin)
+
+    ## Quick start (local, non-Docker)
+        1. Create/activate a virtualenv and install deps:
+           - python -m venv .venv
+           - .\.venv\Scripts\activate
+           - pip install -r requirements.txt
+
+        2. Create .env (copy from .env.example) and set DATABASE_URL.
+
+        3. Run migrations and start the server:
+           - python manage.py migrate
+           - python manage.py runserver
+
+    ## Quick start (Docker)
+        1. Build and start services:
+           - docker compose up --build
+        2. Open the app:
+           - http://localhost:8000/ (admin at /admin/)
+        3. Stop services:
+           - docker compose down
+        4. Reset database volume (optional):
+           - docker compose down -v
 
 # monday-client-writer (GraphQLQuery.py)
 
@@ -103,5 +235,4 @@
 
         ```bash
         pip install requests
-
-
+        ```

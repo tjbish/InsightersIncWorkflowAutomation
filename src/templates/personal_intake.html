@@ -1,0 +1,194 @@
+{% load django_bootstrap5 %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Insighters Individual Intake Form</title>
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+    <style>
+        .section-header {
+            background-color: #f8f9fa;
+            border-left: 5px solid #0d6efd; /* Green for Personal/Money */
+            padding: 10px;
+            margin-bottom: 20px;
+            margin-top: 30px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .form-label { font-weight: 500; }
+        .dep-header { font-size: 0.9rem; font-weight: bold; color: #6c757d; margin-bottom: 5px; }
+
+        /* Custom styling for the status/year box */
+        .status-box {
+            background-color: #fff;
+            border: 1px solid #e9ecef;
+            border-left: 5px solid #6c757d;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .status-box .form-check {
+            display: inline-block;
+            margin-right: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5 mb-5">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-5">
+                    <h1>Insighters Individual Intake Form</h1>
+                    <p class="text-muted">Tax Year Information for New & Existing Clients</p>
+                </div>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="status-box p-4 mb-4">
+                        <div class="row">
+                            <div class="col-md-7">
+                                 <label class="form-label mb-2">Client Status</label>
+                                 {% bootstrap_field form.client_status show_label=False wrapper_class='mb-0' %}
+                            </div>
+                            <div class="col-md-5">
+                                {% bootstrap_field form.tax_year %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h4 class="section-header">Client Information</h4>
+                    <div class="row">
+                        <div class="col-md-6">{% bootstrap_field form.client_name %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.client_dob %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.client_ssn %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">{% bootstrap_field form.client_occupation %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.client_dl %}</div>
+                        <div class="col-md-2">{% bootstrap_field form.client_dl_exp %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.client_dl_issued %}</div>
+                    </div>
+
+                    <h4 class="section-header">Spouse Information (If Applicable)</h4>
+                    <div class="row">
+                        <div class="col-md-6">{% bootstrap_field form.spouse_name %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.spouse_dob %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.spouse_ssn %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">{% bootstrap_field form.spouse_occupation %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.spouse_dl %}</div>
+                        <div class="col-md-2">{% bootstrap_field form.spouse_dl_exp %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.spouse_dl_issued %}</div>
+                    </div>
+
+                    <h4 class="section-header">Contact & Filing Status</h4>
+                    <div class="row">
+                        <div class="col-12">{% bootstrap_field form.address %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-5">{% bootstrap_field form.city %}</div>
+                        <div class="col-md-4">{% bootstrap_field form.state %}</div>
+                        <div class="col-md-3">{% bootstrap_field form.zip_code %}</div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-4">{% bootstrap_field form.phone_number %}</div>
+                        <div class="col-md-4">{% bootstrap_field form.cell_number %}</div>
+                        <div class="col-md-4">{% bootstrap_field form.email %}</div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label class="form-label mb-2">Filing Status</label>
+                            {% bootstrap_field form.filing_status show_label=False %}
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Dependents</h4>
+                    <div class="p-3 mb-3 bg-white border rounded">
+                        <div class="dep-header">Dependent 1</div>
+                        <div class="row">
+                            <div class="col-md-4">{% bootstrap_field form.dep1_name layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep1_dob layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep1_ssn layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep1_rel layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep1_months layout='floating' %}</div>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-white border rounded">
+                        <div class="dep-header">Dependent 2</div>
+                        <div class="row">
+                            <div class="col-md-4">{% bootstrap_field form.dep2_name layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep2_dob layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep2_ssn layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep2_rel layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep2_months layout='floating' %}</div>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-white border rounded">
+                        <div class="dep-header">Dependent 3</div>
+                        <div class="row">
+                            <div class="col-md-4">{% bootstrap_field form.dep3_name layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep3_dob layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep3_ssn layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep3_rel layout='floating' %}</div>
+                            <div class="col-md-2">{% bootstrap_field form.dep3_months layout='floating' %}</div>
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Tax Questionnaire</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light fw-bold">Did you or your spouse collect?</div>
+                                <div class="card-body">
+                                    {% bootstrap_field form.income_sources show_label=False %}
+                                    {% bootstrap_field form.income_other %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light fw-bold">Did you or your spouse pay?</div>
+                                <div class="card-body">
+                                    {% bootstrap_field form.expenses show_label=False %}
+                                    {% bootstrap_field form.expenses_other %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Certification & Agreement</h4>
+                    <div class="p-4 bg-light border rounded">
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.certification }}
+                                <label class="form-check-label small text-secondary" for="{{ form.certification.id_for_label }}">
+                                    {{ form.certification.label }}
+                                </label>
+                                <div class="text-danger small">{{ form.certification.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                {% bootstrap_field form.client_signature %}
+                            </div>
+                            <div class="col-md-4">
+                                {% bootstrap_field form.date_signed %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-5">
+                        {% bootstrap_button "Submit Individual Intake" button_type="submit" button_class="btn-success btn-lg" %}
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,253 @@
+{% load django_bootstrap5 %}
+
+<!--
+NOTE: Look into adding front end form logic in addition to backend logic for validation and constraints
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Business Intake Form</title>
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+    <style>
+        .section-header {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #0d6efd;
+            padding: 10px;
+            margin-bottom: 20px;
+            margin-top: 30px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5 mb-5">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-5">
+                    <h1>Insighters Business Intake Form</h1>
+                    <p class="text-muted">Please complete the fields below to match your official business records.</p>
+                </div>
+
+                <!-- Restrict HTML5 from validating the form; only let Django validate the form-->
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <h4 class="section-header">Owner Information</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-5">
+                            {% bootstrap_field form.owner1_name %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.owner1_ssn %}
+                        </div>
+                        <div class="col-md-3">
+                            {% bootstrap_field form.owner1_ownership %}
+                        </div>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-md-5">
+                            {% bootstrap_field form.owner2_name %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.owner2_ssn %}
+                        </div>
+                        <div class="col-md-3">
+                            {% bootstrap_field form.owner2_ownership %}
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Business Details</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% bootstrap_field form.business_name %}
+                        </div>
+                        <div class="col-md-6">
+                            {% bootstrap_field form.fin_number %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            {% bootstrap_field form.email %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            {% bootstrap_field form.address %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-5">
+                            {% bootstrap_field form.city %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.state %}
+                        </div>
+                        <div class="col-md-3">
+                            {% bootstrap_field form.zip_code %}
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            {% bootstrap_field form.phone_number %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.cell_number %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.fax_number %}
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Business Structure & History</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label mb-2">Type of Business*</label>
+                            {% bootstrap_field form.business_type show_label=False %}
+                            <label class="form-label mb-2">Business Structure*</label>
+                            {% bootstrap_field form.business_structure show_label=False %}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-12">
+                                    {% bootstrap_field form.date_established %}
+                                </div>
+                                <div class="col-12">
+                                    {% bootstrap_field form.date_last_return %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Financial History</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            {% bootstrap_field form.sales_yr1 %}
+                        </div>
+                        <div class="col-md-3">
+                            {% bootstrap_field form.sales_yr2 %}
+                        </div>
+                        <div class="col-md-3">
+                            {% bootstrap_field form.sales_yr3 %}
+                        </div>
+                        <div class="col-md-3">
+                            {% bootstrap_field form.sales_current %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Accounting Period*</label>
+                            {% bootstrap_field form.accounting_period show_label=False %}
+                        </div>
+                        <div class="col-md-6">
+                            {% bootstrap_field form.fiscal_year_end %}
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Banking Information</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_name %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_account_type %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_account_number %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            {% bootstrap_field form.bank_contact_name %}
+                            {% bootstrap_field form.bank_contact_phone %}
+                        </div>
+                    </div>
+
+                     <div class="row">
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_name2 %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_account_type2 %}
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.bank_account_number2 %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            {% bootstrap_field form.bank_contact_name2 %}
+                            {% bootstrap_field form.bank_contact_phone2 %}
+                        </div>
+                    </div>
+
+                    <h4 class="section-header">Payroll & Tax IDs</h4>
+                    
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            {% bootstrap_field form.accounting_software %}
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mt-4">
+                                {% bootstrap_field form.has_payroll %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            {% bootstrap_field form.num_employees %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4 text-muted">
+
+                    <h5 class="mb-3 text-secondary">Tax ID Numbers</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% bootstrap_field form.payroll_id_state %}
+                        </div>
+                        <div class="col-md-6">
+                            {% bootstrap_field form.payroll_id_county %}
+                        </div>
+                        <div class="col-md-6">
+                            {% bootstrap_field form.payroll_id_city %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% bootstrap_field form.sales_tax_state %}
+                        </div>
+                        <div class="col-md-6">
+                            {% bootstrap_field form.sales_tax_county %}
+                        </div>
+                        <div class="col-md-6">
+                            {% bootstrap_field form.sales_tax_city %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-5">
+                        {% bootstrap_button "Submit Business Intake Form" button_type="submit" button_class="btn-primary btn-lg" %}
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
