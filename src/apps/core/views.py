@@ -251,12 +251,16 @@ def personal_view(request):
             # MultipleChoiceField returns a python list -> store as "wages,pension,ss"
             income_list = data.get("income_sources", [])
             if data.get("income_other"):
-                income_list.append(f"{data['income_other']}")
+                # Sanitize commas to prevent breaking the CSV storage format
+                clean_income_other = data['income_other'].replace(",", " ")
+                income_list.append(clean_income_other)
             income_str = ",".join(income_list)
 
             expense_list = data.get("expenses", [])
             if data.get("expenses_other"):
-                expense_list.append(f"{data['expenses_other']}")
+                # Sanitize commas to prevent breaking the CSV storage format
+                clean_expenses_other = data['expenses_other'].replace(",", " ")
+                expense_list.append(clean_expenses_other)
             expense_str = ",".join(expense_list)
 
             PersonalIntakeSubmission.objects.create(
@@ -311,7 +315,7 @@ def personal_view(request):
                 expenses=expense_str or None,
 
                 # --- Certification ---
-                certification = data.get("certification", False),
+                certification=data.get("certification", False),
                 client_signature=data["client_signature"],
                 date_signed=data["date_signed"],
             )
