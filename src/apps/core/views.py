@@ -5,6 +5,7 @@ import secrets
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.debug import sensitive_variables
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
@@ -13,7 +14,6 @@ from .forms import (
     BusinessIntakeForm,
     PersonalIntakeForm,
     IntakeLoginForm,
-    AdminLoginForm,
     TemporaryIntakeCredentialCreateForm,
 )
 from .models import (
@@ -81,29 +81,11 @@ def require_intake_login(view_func):
 
     return _wrapped
 
-def validate_admin_login(login_id: str, password: str) -> bool:
-    # TODO: Replace with DB lookup when credentials are stored.
-    return login_id == settings.ADMIN_LOGIN_ID and password == settings.ADMIN_LOGIN_PASSWORD
-
-def require_admin_login(view_func):
-    @wraps(view_func)
-    def _wrapped(request, *args, **kwargs):
-        allowed_path = request.session.get("admin_login_ok_for")
-        if allowed_path == request.path:
-            # Keep this through GET->POST flow so admin dashboard actions can submit.
-            return view_func(request, *args, **kwargs)
-
-        request.session["admin_login_next"] = request.path
-        return redirect("admin_login")
-
-    return _wrapped
-
 
 def home(request):
-    request.session.pop("admin_login_ok_for", None)
     return render(request, "home.html")
 
-@require_admin_login
+@login_required(login_url="admin_login")
 def admin_dashboard(request):
     # Currently cleans up expired credentials on dashboard startup, can disable this to maintain temp ID persistence in the DB
     _cleanup_expired_temp_credentials()
@@ -114,7 +96,9 @@ def admin_dashboard(request):
         if form.is_valid():
             expires_at = timezone.now() + timedelta(hours=24)
             generated_password = secrets.token_urlsafe(12)
-            created_by_login_id = request.session.get("admin_login_id", "unknown-admin")
+            
+            created_by_login_id = request.user.email if request.user.email else request.user.username
+
             try:
                 login_id = _generate_unique_intake_login_id()
             except RuntimeError:
@@ -145,6 +129,7 @@ def admin_dashboard(request):
         {
             "create_credential_form": form,
             "generated_credential": generated_credential,
+            "session_timeout": getattr(settings, "SESSION_COOKIE_AGE", 3600),
         },
     )
 
@@ -375,25 +360,8 @@ def intake_login(request):
 
     return render(request, "intake_login.html", {"form": form})
 
-@sensitive_variables("login_id", "password")
 def admin_login(request):
-    if request.method == "POST":
-        form = AdminLoginForm(request.POST) # create class in form
-        if form.is_valid():
-            login_id = form.cleaned_data["login_id"]
-            password = form.cleaned_data["password"]
+    if request.user.is_authenticated:
+        return redirect("admin_dashboard")
 
-            if validate_admin_login(login_id, password):
-                next_path = request.session.pop("admin_login_next", None)
-                request.session["admin_login_id"] = login_id
-                if next_path:
-                    request.session["admin_login_ok_for"] = next_path
-                    return redirect(next_path)
-
-                return redirect("home")
-
-            form.add_error(None, "Invalid login ID or password.")
-    else:
-        form = AdminLoginForm()
-
-    return render(request, "admin_login.html", {"form": form})
+    return render(request, "admin_login.html")

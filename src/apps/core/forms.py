@@ -322,19 +322,6 @@ class IntakeLoginForm(forms.Form):
         widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'})
     )
 
-class AdminLoginForm(forms.Form):
-    login_id = forms.CharField(
-        label="Login ID",
-        max_length=150,
-        widget=forms.TextInput(attrs={'autocomplete': 'username'})
-    )
-    password = forms.CharField(
-        label="Password",
-        max_length=150,
-        widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'})
-    )
-
-
 class TemporaryIntakeCredentialCreateForm(forms.Form):
     FORM_TYPE_CHOICES = [
         ("business", "Business Form"),
