@@ -46,6 +46,12 @@
             style="max-width: 500px; height: auto; margin-bottom: 16px;" />
         </a>
         <h2 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation Dashboard </h2>
+        {% if user.is_authenticated %}
+        <div class="mb-3">
+          <span class="text-muted small">Signed in as {{ user.email|default:user.username }}</span>
+          <a href="{% url 'account_logout' %}" class="btn btn-sm btn-outline-dark ms-2">Sign Out</a>
+        </div>
+        {% endif %}
         <div class="mt-4">
           <form method="post" novalidate>
             {% csrf_token %}
@@ -83,6 +89,17 @@
     </div>
   </main>
 
+  {% if user.is_authenticated %}
+  {{ session_timeout|default:3600|json_script:"session-timeout" }}
+  <script>
+    // Automatically redirect to logout after session expiration
+    // We add a small buffer (2 seconds) to ensure the backend session is definitely gone
+    const timeoutSeconds = JSON.parse(document.getElementById('session-timeout').textContent);
+    setTimeout(function() {
+      window.location.href = "{% url 'account_logout' %}?next={% url 'admin_login' %}?timeout=1";
+    }, (timeoutSeconds + 2) * 1000);
+  </script>
+  {% endif %}
 </body>
 
 </html>

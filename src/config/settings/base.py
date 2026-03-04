@@ -20,8 +20,6 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 # TODO: Remove default once temp IDs can be generated
 INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default=None)
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default=None)
-ADMIN_LOGIN_ID = env('ADMIN_LOGIN_ID', default='admin')
-ADMIN_LOGIN_PASSWORD = env('ADMIN_LOGIN_PASSWORD', default='admin')
 
 # Third Party API Settings
 SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
@@ -37,11 +35,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',  # Required by allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.microsoft',
     # Third party
     'django_bootstrap5',
-    # 'django_htmx', # Uncomment if using HTMX
     # Local apps
     'src.apps.core',
+]
+
+# allauth requires a site ID
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 MIDDLEWARE = [
@@ -52,8 +62,48 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'django_htmx.middleware.HtmxMiddleware', # Uncomment if using HTMX
+    'allauth.account.middleware.AccountMiddleware',
 ]
+
+
+MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID')
+MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET')
+MICROSOFT_TENANT_ID = env('ENTRA_TENANT_ID', default='common')
+
+
+SOCIALACCOUNT_PROVIDERS = {
+    'microsoft': {
+        'TENANT': MICROSOFT_TENANT_ID,
+        'APP': {
+            'client_id': MICROSOFT_CLIENT_ID,
+            'secret': MICROSOFT_CLIENT_SECRET,
+        },
+        'SCOPE': [
+            'User.Read',
+            'Mail.Send',
+            'offline_access',
+        ],
+        'AUTH_PARAMS': {
+            'prompt': 'select_account',
+        },
+    }
+}
+
+# Recommended allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+LOGIN_REDIRECT_URL = '/dashboard'  # Where to send the admin after a successful login
+LOGIN_URL = '/admin/login/'
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_LOGOUT_ON_GET = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
+
+# Session Security Settings
+SESSION_COOKIE_AGE = 3600  # Session expires after 30 seconds for testing
+SESSION_SAVE_EVERY_REQUEST = True  # Reset the expiration timer on every request (idle timeout)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Ensure session ends if the browser is closed
 
 ROOT_URLCONF = 'src.config.urls'
 
