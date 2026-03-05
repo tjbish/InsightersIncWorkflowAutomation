@@ -153,6 +153,19 @@ Run only core tests:
 
 - `python manage.py test src.apps.core.tests`
 
+## Email Template Preview
+
+To preview the HTML email template with dummy data:
+
+1. Ensure the application is running.
+2. Generate the preview file:
+   - **Docker:** `docker compose exec web python manage.py shell`
+                  In shell: 
+                  1. `from src.apps.core.email import generate_preview_file`
+                  2. `generate_preview_file()`
+   - **Local:** `python manage.py shell -c "from src.apps.core.email import generate_preview_file; print(generate_preview_file())"`
+3. Open `http://localhost:8000/static/email_preview.html` in your browser.
+
 ## Deployment Notes
 
 This repo includes deployment artifacts for Google Cloud and containers:
