@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="x-apple-disable-message-reformatting">
-    <title>Insighters Inc. Temperary Login</title>
+    <title>Insighters Inc. Temporary Login</title>
     <!--[if mso]>
     <noscript>
         <xml>
@@ -41,12 +41,17 @@
                                     <td style="padding:0 0 36px 0;color:#000000;">
                                         <h1 style="font-size:24px;margin:0 0 20px 0;font-family:Arial,sans-serif;">Hello, {{ name }} </h1>
                                         <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">
-                                            Here is your temperary login information to access your intake form. Please note that these 
-                                            credentials will expire on {{ expiration_time }}
+                                            Here is your temporary login information to access your intake form. Use the links below to 
+                                            navigate to the correct login form. Please note that theses credentials 
+                                            will expire on {{ expiration_time }}
                                         </p>
                                         <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">
                                             <br>Login ID: {{ login_id }}</br>
                                                 Password: {{ password }}
+                                        </p>
+                                        <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">
+                                            <a href="http://localhost:8000/business"> Business Intake </a> &nbsp;&nbsp;|&nbsp;&nbsp;
+                                            <a href="http://localhost:8000/individual"> Individual Intake </a>
                                         </p>
                                     </td>
                                 </tr>
