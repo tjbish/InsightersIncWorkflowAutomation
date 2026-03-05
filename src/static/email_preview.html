@@ -1,4 +1,4 @@
-{% load static %}
+
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -28,7 +28,7 @@
                     <tr>
                         <td align="center" style="padding:40px 0 30px 0;background:#6C757D;">
                             <a href="https://myinsighters.com/" style="display: inline-block;">
-                            <img src="{% static 'insightersLogo.jpg' %}" alt="Insighters Inc logo"
+                            <img src="/static/insightersLogo.jpg" alt="Insighters Inc logo"
                             style="max-width: 500px; height: auto; margin-bottom: 16px;" />
                             </a>
                         </td>
@@ -39,14 +39,17 @@
                             <table role="presentation" style="width:100%;border-collapse:collapse;border:0;border-spacing:0;">
                                 <tr>
                                     <td style="padding:0 0 36px 0;color:#000000;">
-                                        <h1 style="font-size:24px;margin:0 0 20px 0;font-family:Arial,sans-serif;">Hello, {{ name }} </h1>
+                                        <h1 style="font-size:24px;margin:0 0 20px 0;font-family:Arial,sans-serif;">Hello, Valued Client </h1>
                                         <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">
                                             Here is your temperary login information to access your intake form. Please note that these 
-                                            credentials will expire on {{ expiration_time }}
+                                            credentials will expire on 03/05/2026 at 06:02 PM
                                         </p>
                                         <p style="margin:0 0 12px 0;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">
-                                            <br>Login ID: {{ login_id }}</br>
-                                                Password: {{ password }}
+                                            <br>Login ID: INT-PREVIEW-123</br>
+                                                Password: sample-password-123
+                                        </p>
+                                        <p style="margin:0;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">
+                                            <a href="#" style="color:#feda00;text-decoration:underline;">View Details</a>
                                         </p>
                                     </td>
                                 </tr>
