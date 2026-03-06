@@ -6,6 +6,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.views.decorators.debug import sensitive_variables
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
@@ -16,11 +17,13 @@ from .forms import (
     IntakeLoginForm,
     TemporaryIntakeCredentialCreateForm,
 )
+from allauth.socialaccount.models import SocialToken
 from .models import (
     BusinessIntakeSubmission,
     PersonalIntakeSubmission,
     TemporaryIntakeCredential,
 )
+from .email import send_intake_email
 
 
 def _path_to_form_type(path: str):
@@ -90,6 +93,10 @@ def admin_dashboard(request):
     # Currently cleans up expired credentials on dashboard startup, can disable this to maintain temp ID persistence in the DB
     _cleanup_expired_temp_credentials()
 
+    # Check if the admin has a Microsoft token (required for sending emails)
+    if not SocialToken.objects.filter(account__user=request.user, account__provider='microsoft').exists():
+        messages.warning(request, f"No Microsoft token found for user: '{request.user}'. Emails will fail to send. Please log out and sign in via Microsoft.")
+
     generated_credential = None
     if request.method == "POST":
         form = TemporaryIntakeCredentialCreateForm(request.POST)
@@ -112,16 +119,39 @@ def admin_dashboard(request):
                     created_by_login_id=created_by_login_id,
                     expires_at=expires_at,
                 )
+
+                # Attempt to send the email via Microsoft Graph
+                email_sent = False
+                email_error = None
+                try:
+                    if send_intake_email(request, credential.id, generated_password):
+                        email_sent = True
+                        messages.success(request, f"Credential created and email sent to {credential.client_email}")
+                    else:
+                        email_error = "API Error (Non-202 response)"
+                        messages.warning(request, "Credential created, but email sending failed (API error).")
+                except Exception as e:
+                    email_error = str(e)
+                    messages.warning(request, f"Credential created, but email failed: {str(e)}")
+
                 generated_credential = {
                     "login_id": credential.login_id,
                     "password": generated_password,
                     "form_type": credential.get_form_type_display(),
-                    "expires_at": credential.expires_at,
+                    # Convert date to string so it can be stored in the session (JSON)
+                    "expires_at": credential.expires_at.strftime("%m/%d/%Y %I:%M %p"),
                     "client_email": credential.client_email,
+                    "email_sent": email_sent,
+                    "email_error": email_error,
                 }
-                form = TemporaryIntakeCredentialCreateForm()
+                
+                # PRG Pattern: Store data in session and redirect to prevent duplicate submissions on refresh
+                request.session['generated_credential'] = generated_credential
+                return redirect('admin_dashboard')
     else:
         form = TemporaryIntakeCredentialCreateForm()
+        # Check if we have a credential from a recent redirect
+        generated_credential = request.session.pop('generated_credential', None)
 
     return render(
         request,

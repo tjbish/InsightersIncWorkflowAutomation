@@ -1,33 +1,67 @@
 import os
+import requests
+import base64
 from django.conf import settings
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.utils import timezone
-from .models import TemporaryIntakeCredential 
+from allauth.socialaccount.models import SocialToken
+from .models import TemporaryIntakeCredential
 
-def display_login_email(user_id):
-    credential = TemporaryIntakeCredential.objects.get(id=user_id)
+def send_intake_email(request, credential_id, plain_password):
+    credential = TemporaryIntakeCredential.objects.get(id=credential_id)
+    token = SocialToken.objects.filter(account__user=request.user, account__provider='microsoft').first()
 
-    formatted_time = credential.expires_at.strftime("%m/%d/%Y at %I:%M %p")
+    if not token:
+        raise Exception("No Microsoft token found. Please re-login.")
 
-# Used for testing the view of the email templete
-def generate_preview_file():
-    """
-    Generates a static HTML file in src/static/email_preview.html 
-    populated with dummy data so you can view the design in a browser.
-    """
+    # -Encoding the logo image
+    logo_path = os.path.join(settings.BASE_DIR, 'src', 'static', 'insightersLogo.jpg')
+    with open(logo_path, "rb") as image_file:
+        encoded_logo = base64.b64encode(image_file.read()).decode('utf-8')
+
+    # Determine dynamic form link
+    if credential.form_type == TemporaryIntakeCredential.BUSINESS:
+        form_link = "http://localhost:8000/business/"
+        form_type_text = "Business"
+    else:
+        form_link = "http://localhost:8000/individual/"
+        form_type_text = "Individual"
+
     context = {
         'name': 'Valued Client',
-        'expiration_time': timezone.now().strftime("%m/%d/%Y at %I:%M %p"),
-        'login_id': 'INT-PREVIEW-123',
-        'password': 'sample-password-123'
+        'expiration_time': credential.expires_at.strftime("%m/%d/%Y at %I:%M %p"),
+        'login_id': credential.login_id,
+        'password': plain_password,
+        'form_link': form_link,
+        'form_type_display': form_type_text
     }
-    
     html_content = render_to_string('email_temp.html', context)
+
+    # 3. Call Microsoft Graph
+    endpoint = "https://graph.microsoft.com/v1.0/me/sendMail"
+    payload = {
+        "message": {
+            "subject": "Intake Form Access - Insighters Inc",
+            "body": {"contentType": "HTML", "content": html_content},
+            "toRecipients": [{"emailAddress": {"address": credential.client_email}}],
+            "attachments": [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": "insightersLogo.jpg",
+                    "contentType": "image/jpeg",
+                    "contentBytes": encoded_logo,
+                    "contentId": "insightersLogo",
+                    "isInline": True
+                }
+            ]
+        },
+        "saveToSentItems": "true"
+    }
+
+    response = requests.post(
+        endpoint,
+        headers={"Authorization": f"Bearer {token.token}", "Content-Type": "application/json"},
+        json=payload
+    )
     
-    output_path = os.path.join(settings.BASE_DIR, 'src', 'static', 'email_preview.html')
-    
-    with open(output_path, 'w') as f:
-        f.write(html_content)
-    
-    return f"Preview generated at: {output_path}"
+    print(f"DEBUG: Graph API Status: {response.status_code}")
+    return response.status_code == 202
