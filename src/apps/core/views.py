@@ -24,6 +24,7 @@ from .models import (
     TemporaryIntakeCredential,
 )
 from .email import send_intake_email
+from .pdf_engine import fill_individual_pdf
 
 
 def _path_to_form_type(path: str):
@@ -278,7 +279,7 @@ def personal_view(request):
                 expense_list.append(clean_expenses_other)
             expense_str = ",".join(expense_list)
 
-            PersonalIntakeSubmission.objects.create(
+            submission = PersonalIntakeSubmission.objects.create(
                 # --- Filing details ---
                 client_status=data["client_status"],
                 tax_year=data["tax_year"],
@@ -334,6 +335,18 @@ def personal_view(request):
                 client_signature=data["client_signature"],
                 date_signed=data["date_signed"],
             )
+
+            try:
+                timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+                output_path = (
+                    settings.BASE_DIR
+                    / "generated_forms"
+                    / "individual"
+                    / f"individual_submission_{submission.id}_{timestamp}.pdf"
+                )
+                fill_individual_pdf(data, output_path=output_path)
+            except Exception as exc:
+                print(f"Failed to generate individual PDF for submission {submission.id}: {exc}")
 
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
