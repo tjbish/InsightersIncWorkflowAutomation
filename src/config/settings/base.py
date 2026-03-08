@@ -25,7 +25,14 @@ INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default=None)
 SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
 SHAREFILE_API = env('SHAREFILE_API', default=None)
 SHAREFILE_URI = env('SHAREFILE_URI', default=None)
-MONDAY_API = env('MONDAY_API', default=None)
+
+MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None) # Change back to production API key after debugging is finished
+MONDAY_API_URL = env('MONDAY_API_URL', default='https://api.monday.com/v2')
+MONDAY_API_VERSION = env('MONDAY_API_VERSION', default='2024-04')
+MONDAY_BOARD_ID = env('MONDAY_BOARD_ID', default=None)
+MONDAY_GROUP_ID = env('MONDAY_GROUP_ID', default=None)
+MONDAY_BUSINESS_COLUMN_MAP = env.json('MONDAY_BUSINESS_COLUMN_MAP', default={})
+MONDAY_PERSONAL_COLUMN_MAP = env.json('MONDAY_PERSONAL_COLUMN_MAP', default={})
 
 INSTALLED_APPS = [
     # Sprint 2; make sure to check if we need or don't need admin rights

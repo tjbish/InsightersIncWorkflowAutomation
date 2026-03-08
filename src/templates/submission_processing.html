@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Submission Received</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+        .wrap {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+        .card {
+            width: 100%;
+            max-width: 560px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 28px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+        }
+        h1 {
+            margin: 0 0 12px;
+            font-size: 1.6rem;
+        }
+        p {
+            margin: 0 0 10px;
+            line-height: 1.5;
+        }
+        .muted {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body data-auto-monday-sync="{% if has_pending_sync %}1{% else %}0{% endif %}">
+    <div class="wrap">
+        <div class="card">
+            <h1>Thank you for your submission.</h1>
+            {% if submitted_form_type %}
+            <p class="muted">Form type: {{ submitted_form_type|title }}</p>
+            {% endif %}
+            <p id="sync-status">
+                {% if has_pending_sync %}
+                We are finalizing your submission now.
+                {% else %}
+                Your submission has been finalized.
+                {% endif %}
+            </p>
+            <p class="muted">You can close this page when processing completes.</p>
+        </div>
+    </div>
+    <script src="{% static 'js/custom_query.js' %}"></script>
+</body>
+</html>

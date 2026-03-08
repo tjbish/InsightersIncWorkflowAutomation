@@ -1,15 +1,20 @@
 from functools import wraps
 from datetime import timedelta
 import secrets
+import json
+import requests
 
 from django.conf import settings
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.debug import sensitive_variables
+from django.views.decorators.http import require_POST
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
+from django.forms.models import model_to_dict
 
 from .forms import (
     BusinessIntakeForm,
@@ -45,6 +50,104 @@ def _generate_unique_intake_login_id():
         if not TemporaryIntakeCredential.objects.filter(login_id=candidate).exists():
             return candidate
     raise RuntimeError("Unable to generate a unique intake login ID.")
+
+
+def _serialize_submission(submission):
+    payload = model_to_dict(submission)
+    payload["id"] = submission.id
+    return json.loads(json.dumps(payload, cls=DjangoJSONEncoder))
+
+
+def _to_monday_column_values(submission_payload, column_map):
+    column_values = {}
+    for local_key, monday_column_id in (column_map or {}).items():
+        if not monday_column_id:
+            continue
+
+        value = submission_payload.get(local_key)
+        if value in (None, ""):
+            continue
+
+        # monday email columns typically require an object payload.
+        if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
+            column_values[monday_column_id] = {"email": value, "text": value}
+        else:
+            column_values[monday_column_id] = value
+
+    return column_values
+
+
+def _monday_create_item(item_name, column_values):
+    token = getattr(settings, "MONDAY_API_TOKEN", None) or getattr(settings, "MONDAY_API", None)
+    board_id = getattr(settings, "MONDAY_BOARD_ID", None)
+    group_id = getattr(settings, "MONDAY_GROUP_ID", None)
+    api_url = getattr(settings, "MONDAY_API_URL", "https://api.monday.com/v2")
+    api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
+
+    if not token:
+        raise RuntimeError("MONDAY_API_TOKEN (or MONDAY_API) is not configured.")
+    if not board_id:
+        raise RuntimeError("MONDAY_BOARD_ID is not configured.")
+
+    headers = {
+        "Authorization": token,
+        "Content-Type": "application/json",
+        "API-Version": api_version,
+    }
+
+    if group_id:
+        mutation = """
+        mutation ($board_id: ID!, $group_id: String!, $item_name: String!, $column_values: JSON!) {
+          create_item(
+            board_id: $board_id,
+            group_id: $group_id,
+            item_name: $item_name,
+            column_values: $column_values
+          ) {
+            id
+            name
+          }
+        }
+        """
+        variables = {
+            "board_id": str(board_id),
+            "group_id": group_id,
+            "item_name": item_name,
+            "column_values": json.dumps(column_values),
+        }
+    else:
+        mutation = """
+        mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
+          create_item(
+            board_id: $board_id,
+            item_name: $item_name,
+            column_values: $column_values
+          ) {
+            id
+            name
+          }
+        }
+        """
+        variables = {
+            "board_id": str(board_id),
+            "item_name": item_name,
+            "column_values": json.dumps(column_values),
+        }
+
+    response = requests.post(
+        api_url,
+        headers=headers,
+        json={"query": mutation, "variables": variables},
+        timeout=30,
+    )
+    if not response.ok:
+        raise RuntimeError(f"monday HTTP {response.status_code}: {response.text}")
+
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(f"monday GraphQL errors: {payload['errors']}")
+
+    return payload["data"]["create_item"]
 
 
 def authenticate_intake_login(login_id: str, password: str, next_path: str = None):
@@ -88,6 +191,27 @@ def require_intake_login(view_func):
 
 def home(request):
     return render(request, "home.html")
+
+
+def submission_processing_view(request):
+    has_pending_sync = bool(
+        request.session.get("monday_pending_business_submission")
+        or request.session.get("monday_pending_personal_submission")
+    )
+    submitted_form_type = request.session.pop("submitted_form_type", None)
+
+    if not has_pending_sync and not submitted_form_type:
+        return redirect("home")
+
+    return render(
+        request,
+        "submission_processing.html",
+        {
+            "has_pending_sync": has_pending_sync,
+            "submitted_form_type": submitted_form_type,
+        },
+    )
+
 
 @login_required(login_url="admin_login")
 def admin_dashboard(request):
@@ -173,7 +297,7 @@ def business_view(request):
         if form.is_valid():
             data = form.cleaned_data
 
-            BusinessIntakeSubmission.objects.create(
+            submission = BusinessIntakeSubmission.objects.create(
                 # --- Owner info (NO SSN STORED) ---
                 owner1_name=data["owner1_name"],
                 owner1_ownership=data["owner1_ownership"],
@@ -243,17 +367,19 @@ def business_view(request):
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
 
-            request.session.pop("intake_login_id", None)
-            request.session.pop("intake_login_ok_for", None)
-            request.session.pop("intake_is_env_bypass", None)
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
-            return HttpResponse("Thank you! We have received your information.")
+            serialized = _serialize_submission(submission)
+            request.session["monday_pending_business_submission"] = serialized
+            request.session["submitted_form_type"] = "business"
+            # Lock access away from the form endpoint until monday sync finalizes.
+            request.session["intake_login_ok_for"] = "/submission-processing/"
+            return redirect("submission_processing")
         else:
             print(f"Business Form Validation Errors: {form.errors}")
     else:
         form = BusinessIntakeForm()
 
-    return render(request, "business_intake.html", {"form": form})
+    return render(request, "business_intake.html", {"form": form, "business_submission": None, "personal_submission": None})
 
 
 @sensitive_variables()
@@ -359,17 +485,62 @@ def personal_view(request):
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
 
-            request.session.pop("intake_login_id", None)
-            request.session.pop("intake_login_ok_for", None)
-            request.session.pop("intake_is_env_bypass", None)
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
-            return HttpResponse("Thank you! Individual Intake received.")
+            serialized = _serialize_submission(submission)
+            request.session["monday_pending_personal_submission"] = serialized
+            request.session["submitted_form_type"] = "individual"
+            # Lock access away from the form endpoint until monday sync finalizes.
+            request.session["intake_login_ok_for"] = "/submission-processing/"
+            return redirect("submission_processing")
         else:
             print(f"Personal Form Validation Errors: {form.errors}")
     else:
         form = PersonalIntakeForm()
 
-    return render(request, "personal_intake.html", {"form": form})
+    return render(request, "personal_intake.html", {"form": form, "business_submission": None, "personal_submission": None})
+
+
+@require_POST
+def monday_create_item_api(request):
+    business_submission = request.session.get("monday_pending_business_submission")
+    personal_submission = request.session.get("monday_pending_personal_submission")
+    if not business_submission and not personal_submission:
+        return JsonResponse({"ok": False, "error": "No pending submission found for monday sync."}, status=400)
+
+    created_items = {}
+    try:
+        if business_submission:
+            business_item_name = business_submission.get("business_name") or "Business Intake Submission"
+            business_columns = _to_monday_column_values(
+                business_submission,
+                getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
+            )
+            created_items["business"] = _monday_create_item(
+                item_name=business_item_name,
+                column_values=business_columns,
+            )
+            request.session.pop("monday_pending_business_submission", None)
+
+        if personal_submission:
+            personal_item_name = personal_submission.get("client_name") or "Personal Intake Submission"
+            personal_columns = _to_monday_column_values(
+                personal_submission,
+                getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
+            )
+            created_items["personal"] = _monday_create_item(
+                item_name=personal_item_name,
+                column_values=personal_columns,
+            )
+            request.session.pop("monday_pending_personal_submission", None)
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=502)
+
+    # Invalidate one-time intake form access only after monday sync succeeds.
+    request.session.pop("intake_login_id", None)
+    request.session.pop("intake_login_ok_for", None)
+    request.session.pop("intake_is_env_bypass", None)
+
+    return JsonResponse({"ok": True, "created_items": created_items})
 
 
 @sensitive_variables("login_id", "password")
