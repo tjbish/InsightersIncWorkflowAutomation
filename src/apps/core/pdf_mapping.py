@@ -89,3 +89,37 @@ EXPENSE_FIELDS = {
 }
 
 
+def _to_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%m/%d/%Y")
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    return str(value)
+
+
+def _empty_choice_fields() -> dict[str, str]:
+    return {
+        "client_status": "",
+        "client_status2": "",
+        "filing_status1": "",
+        "filing_status2": "",
+        "filing_status3": "",
+        "filing_status4": "",
+        "filing_status5": "",
+        "income_sources1": "",
+        "income_sources2": "",
+        "income_sources3": "",
+        "income_sources4": "",
+        "income_sources5": "",
+        "income_sources6": "",
+        "income_sources7": "",
+        "expenses1": "",
+        "expenses2": "",
+        "expenses3": "",
+        "certification": "",
+    }
+
+
+
