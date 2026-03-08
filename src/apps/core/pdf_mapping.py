@@ -122,4 +122,39 @@ def _empty_choice_fields() -> dict[str, str]:
     }
 
 
+def build_individual_pdf_field_values(cleaned_data: dict[str, Any]) -> dict[str, str]:
+    field_values = _empty_choice_fields()
 
+    for django_field, pdf_field in DIRECT_TEXT_FIELDS.items():
+        field_values[pdf_field] = _to_text(cleaned_data.get(django_field))
+
+    for field_name in DEPENDENT_FIELDS:
+        field_values[field_name] = _to_text(cleaned_data.get(field_name))
+
+    # Keep both keys so template typo changes do not block generation.
+    field_values["deb3_dob"] = _to_text(cleaned_data.get("dep3_dob"))
+
+    client_status = cleaned_data.get("client_status")
+    if client_status in CLIENT_STATUS_FIELDS:
+        field_values[CLIENT_STATUS_FIELDS[client_status]] = X_MARK
+
+    filing_status = cleaned_data.get("filing_status")
+    if filing_status in FILING_STATUS_FIELDS:
+        field_values[FILING_STATUS_FIELDS[filing_status]] = X_MARK
+
+    income_sources = cleaned_data.get("income_sources") or []
+    for choice in income_sources:
+        pdf_field = INCOME_SOURCE_FIELDS.get(choice)
+        if pdf_field:
+            field_values[pdf_field] = X_MARK
+
+    expenses = cleaned_data.get("expenses") or []
+    for choice in expenses:
+        pdf_field = EXPENSE_FIELDS.get(choice)
+        if pdf_field:
+            field_values[pdf_field] = X_MARK
+
+    if cleaned_data.get("certification"):
+        field_values["certification"] = X_MARK
+
+    return field_values
