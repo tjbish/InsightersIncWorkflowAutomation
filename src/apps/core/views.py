@@ -56,6 +56,54 @@ def _serialize_submission(submission):
     return json.loads(json.dumps(payload, cls=DjangoJSONEncoder))
 
 
+def _split_name(full_name):
+    raw = (full_name or "").strip()
+    if not raw:
+        return "", ""
+
+    if "," in raw:
+        last, first = [part.strip() for part in raw.split(",", 1)]
+        return first, last
+
+    parts = raw.split()
+    if len(parts) == 1:
+        return parts[0], ""
+
+    first = " ".join(parts[:-1]).strip()
+    last = parts[-1].strip()
+    return first, last
+
+
+def _format_last_first(first, last):
+    if first and last:
+        return f"{last}, {first}"
+    if last:
+        return last
+    return first
+
+
+def _build_personal_monday_item_name(client_name, spouse_name=None):
+    client_first, client_last = _split_name(client_name)
+    base_name = _format_last_first(client_first, client_last).strip()
+    if not base_name:
+        base_name = (client_name or "").strip()
+
+    spouse_first, spouse_last = _split_name(spouse_name)
+    if not spouse_first and not spouse_last:
+        return base_name
+
+    if spouse_last and client_last and spouse_last.lower() == client_last.lower():
+        spouse_part = spouse_first or spouse_last
+    elif spouse_last:
+        spouse_part = _format_last_first(spouse_first, spouse_last)
+    else:
+        spouse_part = spouse_first
+
+    if spouse_part:
+        return f"{base_name} & {spouse_part}"
+    return base_name
+
+
 def _to_monday_column_values(submission_payload, column_map):
     column_values = {}
     for local_key, monday_column_id in (column_map or {}).items():
@@ -65,6 +113,12 @@ def _to_monday_column_values(submission_payload, column_map):
         value = submission_payload.get(local_key)
         if value in (None, ""):
             continue
+
+        if local_key == "client_name":
+            value = _build_personal_monday_item_name(
+                submission_payload.get("client_name"),
+                submission_payload.get("spouse_name"),
+            )
 
         # monday email columns typically require an object payload.
         if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
@@ -216,7 +270,10 @@ def submission_processing_view(request):
                 request.session.pop("monday_pending_business_submission", None)
 
             if personal_submission:
-                personal_item_name = personal_submission.get("client_name") or "Personal Intake Submission"
+                personal_item_name = _build_personal_monday_item_name(
+                    personal_submission.get("client_name"),
+                    personal_submission.get("spouse_name"),
+                ) or "Personal Intake Submission"
                 personal_columns = _to_monday_column_values(
                     personal_submission,
                     getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
