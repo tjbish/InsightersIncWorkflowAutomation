@@ -1,5 +1,4 @@
 {% load django_bootstrap5 %}
-{% load static %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -191,8 +190,5 @@
             </div>
         </div>
     </div>
-    {{ business_submission|json_script:'business-submission-data' }}
-    {{ personal_submission|json_script:'personal-submission-data' }}
-    <script src="{% static 'js/custom_query.js' %}"></script>
 </body>
 </html>

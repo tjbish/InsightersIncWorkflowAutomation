@@ -6,11 +6,9 @@ import requests
 
 from django.conf import settings
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.debug import sensitive_variables
-from django.views.decorators.http import require_POST
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
@@ -194,14 +192,48 @@ def home(request):
 
 
 def submission_processing_view(request):
-    has_pending_sync = bool(
-        request.session.get("monday_pending_business_submission")
-        or request.session.get("monday_pending_personal_submission")
-    )
     submitted_form_type = request.session.pop("submitted_form_type", None)
+    business_submission = request.session.get("monday_pending_business_submission")
+    personal_submission = request.session.get("monday_pending_personal_submission")
+    has_pending_sync = bool(business_submission or personal_submission)
+    sync_error = None
 
     if not has_pending_sync and not submitted_form_type:
         return redirect("home")
+
+    if has_pending_sync:
+        try:
+            if business_submission:
+                business_item_name = business_submission.get("business_name") or "Business Intake Submission"
+                business_columns = _to_monday_column_values(
+                    business_submission,
+                    getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
+                )
+                _monday_create_item(
+                    item_name=business_item_name,
+                    column_values=business_columns,
+                )
+                request.session.pop("monday_pending_business_submission", None)
+
+            if personal_submission:
+                personal_item_name = personal_submission.get("client_name") or "Personal Intake Submission"
+                personal_columns = _to_monday_column_values(
+                    personal_submission,
+                    getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
+                )
+                _monday_create_item(
+                    item_name=personal_item_name,
+                    column_values=personal_columns,
+                )
+                request.session.pop("monday_pending_personal_submission", None)
+
+            # Invalidate one-time intake form access only after monday sync succeeds.
+            request.session.pop("intake_login_id", None)
+            request.session.pop("intake_login_ok_for", None)
+            request.session.pop("intake_is_env_bypass", None)
+            has_pending_sync = False
+        except Exception as exc:
+            sync_error = str(exc)
 
     return render(
         request,
@@ -209,6 +241,7 @@ def submission_processing_view(request):
         {
             "has_pending_sync": has_pending_sync,
             "submitted_form_type": submitted_form_type,
+            "sync_error": sync_error,
         },
     )
 
@@ -379,7 +412,7 @@ def business_view(request):
     else:
         form = BusinessIntakeForm()
 
-    return render(request, "business_intake.html", {"form": form, "business_submission": None, "personal_submission": None})
+    return render(request, "business_intake.html", {"form": form})
 
 
 @sensitive_variables()
@@ -497,50 +530,7 @@ def personal_view(request):
     else:
         form = PersonalIntakeForm()
 
-    return render(request, "personal_intake.html", {"form": form, "business_submission": None, "personal_submission": None})
-
-
-@require_POST
-def monday_create_item_api(request):
-    business_submission = request.session.get("monday_pending_business_submission")
-    personal_submission = request.session.get("monday_pending_personal_submission")
-    if not business_submission and not personal_submission:
-        return JsonResponse({"ok": False, "error": "No pending submission found for monday sync."}, status=400)
-
-    created_items = {}
-    try:
-        if business_submission:
-            business_item_name = business_submission.get("business_name") or "Business Intake Submission"
-            business_columns = _to_monday_column_values(
-                business_submission,
-                getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
-            )
-            created_items["business"] = _monday_create_item(
-                item_name=business_item_name,
-                column_values=business_columns,
-            )
-            request.session.pop("monday_pending_business_submission", None)
-
-        if personal_submission:
-            personal_item_name = personal_submission.get("client_name") or "Personal Intake Submission"
-            personal_columns = _to_monday_column_values(
-                personal_submission,
-                getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
-            )
-            created_items["personal"] = _monday_create_item(
-                item_name=personal_item_name,
-                column_values=personal_columns,
-            )
-            request.session.pop("monday_pending_personal_submission", None)
-    except Exception as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=502)
-
-    # Invalidate one-time intake form access only after monday sync succeeds.
-    request.session.pop("intake_login_id", None)
-    request.session.pop("intake_login_ok_for", None)
-    request.session.pop("intake_is_env_bypass", None)
-
-    return JsonResponse({"ok": True, "created_items": created_items})
+    return render(request, "personal_intake.html", {"form": form})
 
 
 @sensitive_variables("login_id", "password")

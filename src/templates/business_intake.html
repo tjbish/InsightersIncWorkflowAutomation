@@ -1,5 +1,4 @@
 {% load django_bootstrap5 %}
-{% load static %}
 
 <!--
 NOTE: Look into adding front end form logic in addition to backend logic for validation and constraints
@@ -250,8 +249,5 @@ NOTE: Look into adding front end form logic in addition to backend logic for val
             </div>
         </div>
     </div>
-    {{ business_submission|json_script:'business-submission-data' }}
-    {{ personal_submission|json_script:'personal-submission-data' }}
-    <script src="{% static 'js/custom_query.js' %}"></script>
 </body>
 </html>
