@@ -3,6 +3,8 @@ import requests
 import base64
 from django.conf import settings
 from django.template.loader import render_to_string
+from django.contrib.auth.models import User
+from django.db.models import Q
 from allauth.socialaccount.models import SocialToken
 from .models import TemporaryIntakeCredential
 
@@ -65,3 +67,72 @@ def send_intake_email(request, credential_id, plain_password):
     
     print(f"DEBUG: Graph API Status: {response.status_code}")
     return response.status_code == 202
+
+
+# Used for sending a confirmation email to the admin user as well as the pdf generated
+# from the intake forms
+def send_submission_confirmation_email(submission, credential, pdf_path=None):
+    # 1. Find the admin user who created the credential
+    admin_identifier = credential.created_by_login_id
+    # Try to find by email or username
+    admin_user = User.objects.filter(Q(email=admin_identifier) | Q(username=admin_identifier)).first()
+    
+    if not admin_user:
+        print(f"Error: Could not find admin user for identifier {admin_identifier}")
+        return False
+
+    token = SocialToken.objects.filter(account__user=admin_user, account__provider='microsoft').first()
+    
+    if not token:
+        print(f"Error: No Microsoft token found for admin {admin_identifier}")
+        return False
+
+    # 2. Determine client name and type
+    if hasattr(submission, 'business_name'):
+        client_name = submission.business_name
+        form_type = "Business"
+    else:
+        client_name = submission.client_name
+        form_type = "Individual"
+
+    context = {
+        'client_name': client_name,
+        'form_type': form_type,
+        'submission_date': submission.created_at.strftime("%m/%d/%Y at %I:%M %p"),
+    }
+    html_content = render_to_string('email_submission_confirmation.html', context)
+
+    attachments = []
+    if pdf_path and os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            encoded_pdf = base64.b64encode(f.read()).decode('utf-8')
+        
+        attachments.append({
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            "name": f"{client_name.replace(' ', '_')}_Intake.pdf",
+            "contentType": "application/pdf",
+            "contentBytes": encoded_pdf
+        })
+
+    # 3. Send via Graph API (Send TO the admin user)
+    endpoint = "https://graph.microsoft.com/v1.0/me/sendMail"
+    payload = {
+        "message": {
+            "subject": f"Intake Form Completed: {client_name}",
+            "body": {"contentType": "HTML", "content": html_content},
+            "toRecipients": [{"emailAddress": {"address": admin_user.email}}],
+            "attachments": attachments
+        },
+        "saveToSentItems": "true"
+    }
+
+    try:
+        response = requests.post(
+            endpoint,
+            headers={"Authorization": f"Bearer {token.token}", "Content-Type": "application/json"},
+            json=payload
+        )
+        return response.status_code == 202
+    except Exception as e:
+        print(f"Error sending confirmation email: {e}")
+        return False

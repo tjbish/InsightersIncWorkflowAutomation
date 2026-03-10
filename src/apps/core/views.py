@@ -26,7 +26,7 @@ from .models import (
     PersonalIntakeSubmission,
     TemporaryIntakeCredential,
 )
-from .email import send_intake_email
+from .email import send_intake_email, send_submission_confirmation_email
 from .pdf_engine import fill_individual_pdf
 
 
