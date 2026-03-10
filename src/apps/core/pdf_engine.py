@@ -5,7 +5,7 @@ from typing import Any
 
 from django.conf import settings
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import BooleanObject, NameObject
+from pypdf.generic import BooleanObject, NameObject, TextStringObject
 
 from .pdf_mapping import build_individual_pdf_field_values
 
@@ -13,10 +13,37 @@ from .pdf_mapping import build_individual_pdf_field_values
 INDIVIDUAL_TEMPLATE = settings.BASE_DIR / "src" / "apps" / "core" / "pdf_templates" / "IndividualForm.pdf"
 
 
+def _prepare_acroform(writer: PdfWriter, reader: PdfReader) -> None:
+    root = reader.trailer.get("/Root", {})
+    acroform = root.get("/AcroForm")
+    if acroform:
+        writer._root_object.update({NameObject("/AcroForm"): acroform})
+
+    # pypdf helper for NeedAppearances (API differs by version).
+    if hasattr(writer, "set_need_appearances_writer"):
+        try:
+            writer.set_need_appearances_writer(True)
+        except TypeError:
+            writer.set_need_appearances_writer()
+
+    _set_need_appearances(writer)
+    _ensure_default_appearance(writer)
+
+
 def _set_need_appearances(writer: PdfWriter) -> None:
     if "/AcroForm" not in writer._root_object:
         return
     writer._root_object["/AcroForm"][NameObject("/NeedAppearances")] = BooleanObject(True)
+
+
+def _ensure_default_appearance(writer: PdfWriter) -> None:
+    if "/AcroForm" not in writer._root_object:
+        return
+
+    acroform = writer._root_object["/AcroForm"]
+    if "/DA" not in acroform:
+        # Default appearance: Helvetica, auto size, black.
+        acroform[NameObject("/DA")] = TextStringObject("/Helv 0 Tf 0 g")
 
 
 def fill_individual_pdf(
@@ -33,10 +60,7 @@ def fill_individual_pdf(
     for page in reader.pages:
         writer.add_page(page)
 
-    if reader.trailer.get("/Root", {}).get("/AcroForm"):
-        writer._root_object.update(
-            {NameObject("/AcroForm"): reader.trailer["/Root"]["/AcroForm"]}
-        )
+    _prepare_acroform(writer, reader)
 
     field_values = build_individual_pdf_field_values(cleaned_data)
     for page in writer.pages:
@@ -45,8 +69,6 @@ def fill_individual_pdf(
             field_values,
             auto_regenerate=True,
         )
-
-    _set_need_appearances(writer)
 
     with output_path.open("wb") as output_file:
         writer.write(output_file)
