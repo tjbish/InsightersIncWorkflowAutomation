@@ -43,7 +43,7 @@ def fill_individual_pdf(
         writer.update_page_form_field_values(
             page,
             field_values,
-            auto_regenerate=False,
+            auto_regenerate=True,
         )
 
     _set_need_appearances(writer)
