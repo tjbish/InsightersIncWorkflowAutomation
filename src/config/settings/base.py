@@ -15,7 +15,11 @@ SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-fallback-key')
 DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.a.run.app",  # Matches any Cloud Run URL Fix When know more
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 
 # TODO: Remove default once temp IDs can be generated
 INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default=None)

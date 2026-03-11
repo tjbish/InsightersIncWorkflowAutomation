@@ -25,6 +25,8 @@ steps:
       - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
       - '--region'
       - '$_REGION'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID,DJANGO_SETTINGS_MODULE=src.config.settings.production,ALLOWED_HOSTS=*,MONDAY_BOARD_ID=$_MONDAY_BOARD_ID,ENTRA_CLIENT_ID=$_ENTRA_CLIENT_ID,ENTRA_TENANT_ID=$_ENTRA_TENANT_ID'
 
   # Optional: Best Practice for Auditing and UI purposes
 images:
@@ -34,3 +36,6 @@ substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'insighters-repo'
   _SERVICE_NAME: 'insighters-workflow-automation'
+  _MONDAY_BOARD_ID: '18402769675'
+  _ENTRA_CLIENT_ID: '8e096945-0d70-405d-820a-1aae9f25da14'
+  _ENTRA_TENANT_ID: 'common'

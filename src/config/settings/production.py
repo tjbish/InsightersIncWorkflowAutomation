@@ -3,6 +3,7 @@
 
 from .base import *
 from google.cloud import secretmanager
+import json
 
 # Production settings
 DEBUG = False
@@ -22,10 +23,14 @@ def get_secret(secret_id: str, version_id: str = "latest") -> str:
 # Map Django settings (keys) to Google Secret Manager IDs (values)
 SECRETS_MAPPING = {
     "SECRET_KEY": "DJANGO_SECRET_KEY",
+    "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
+    "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
     "SHAREFILE_API": "SHAREFILE_API",
-    "MONDAY_API": "MONDAY_API",
+    "MONDAY_API_TOKEN": "MONDAY_DEV_API",
     "SHAREFILE_CLIENT_ID": "SHAREFILE_CLIENT_ID",
     "SHAREFILE_URI": "SHAREFILE_URI",
+    "MONDAY_BUSINESS_MAP_JSON": "MONDAY_BUSINESS_COLUMN_MAP",
+    "MONDAY_PERSONAL_MAP_JSON": "MONDAY_PERSONAL_COLUMN_MAP",
 }
 
 for setting_name, secret_id in SECRETS_MAPPING.items():
@@ -40,6 +45,24 @@ for setting_name, secret_id in SECRETS_MAPPING.items():
             if env('DJANGO_SECRET_KEY', default=None) is None:
                  raise RuntimeError(f"CRITICAL: SECRET_KEY is missing! Failed to fetch from Secret Manager and not found in environment.")
 
+# --- Post-Fetch Configuration Application ---
+# Because base.py runs first, complex dictionaries (DATABASES, SOCIALACCOUNT_PROVIDERS)
+# are already built using the old/empty Env values. We must update them now.
+
+if "DATABASE_URL_VAL" in globals():
+    # Re-configure database using the URL fetched from Secret Manager
+    DATABASES['default'] = env.db_url(globals()["DATABASE_URL_VAL"])
+
+if "MICROSOFT_CLIENT_SECRET" in globals():
+    # Update the AllAuth provider config with the fetched secret
+    SOCIALACCOUNT_PROVIDERS['microsoft']['APP']['secret'] = globals()["MICROSOFT_CLIENT_SECRET"]
+
+# Parse JSON configurations fetched from Secret Manager
+if "MONDAY_BUSINESS_MAP_JSON" in globals():
+    MONDAY_BUSINESS_COLUMN_MAP = json.loads(globals()["MONDAY_BUSINESS_MAP_JSON"])
+
+if "MONDAY_PERSONAL_MAP_JSON" in globals():
+    MONDAY_PERSONAL_COLUMN_MAP = json.loads(globals()["MONDAY_PERSONAL_MAP_JSON"])
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
