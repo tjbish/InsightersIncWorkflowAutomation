@@ -31,7 +31,7 @@ COPY --chown=appuser:appgroup . /app/
 RUN chown appuser:appgroup /app && mkdir -p /app/staticfiles && chown appuser:appgroup /app/staticfiles
 
 # Make the entrypoint script executable
-RUN chmod +x /app/scripts/entrypoint.sh
+RUN sed -i 's/\r$//' /app/scripts/entrypoint.sh && chmod +x /app/scripts/entrypoint.sh
 
 # Expose port 8080 (Google Cloud Run default)
 EXPOSE 8080
@@ -40,7 +40,7 @@ EXPOSE 8080
 USER appuser
 
 # Set the entrypoint to run migrations before starting the server
-# ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 # Run gunicorn
 # We point to src.config.wsgi based on your project structure in README.md
