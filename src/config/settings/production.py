@@ -22,7 +22,7 @@ def get_secret(secret_id: str, version_id: str = "latest") -> str:
 # Map Django settings (keys) to Google Secret Manager IDs (values)
 SECRETS_MAPPING = {
     "SECRET_KEY": "DJANGO_SECRET_KEY",
-    # "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
+    "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
     "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
     "SHAREFILE_API": "SHAREFILE_API",
     "MONDAY_API_TOKEN": "MONDAY_DEV_API",
