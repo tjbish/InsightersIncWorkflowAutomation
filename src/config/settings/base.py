@@ -77,8 +77,8 @@ MIDDLEWARE = [
 ]
 
 
-MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID')
-MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET')
+MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID', default=None)
+MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET', default=None)
 MICROSOFT_TENANT_ID = env('ENTRA_TENANT_ID', default='common')
 
 
@@ -141,7 +141,7 @@ WSGI_APPLICATION = 'src.config.wsgi.application'
 # Database
 # This reads the DATABASE_URL environment variable set in docker-compose.yml
 DATABASES = {
-    'default': env.db(),
+    'default': env.db('DATABASE_URL', default='sqlite:///tmp/db.sqlite3'),
 }
 
 AUTH_PASSWORD_VALIDATORS = [
