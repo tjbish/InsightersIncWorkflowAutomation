@@ -40,7 +40,7 @@ EXPOSE 8080
 USER appuser
 
 # Set the entrypoint to run migrations before starting the server
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+# ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 # Run gunicorn
 # We point to src.config.wsgi based on your project structure in README.md
