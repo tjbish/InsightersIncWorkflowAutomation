@@ -8,14 +8,13 @@ import json
 # Production settings
 DEBUG = False
 
+client = secretmanager.SecretManagerServiceClient()
 # Function to fetch secret from Google Secret Manager
 def get_secret(secret_id: str, version_id: str = "latest") -> str:
     """Fetch a secret from Google Cloud Secret Manager."""
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
     if not project_id:
         raise ValueError("GOOGLE_CLOUD_PROJECT environment variable must be set.")
-
-    client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
     response = client.access_secret_version(name=name)
     return response.payload.data.decode("UTF-8")
@@ -23,7 +22,7 @@ def get_secret(secret_id: str, version_id: str = "latest") -> str:
 # Map Django settings (keys) to Google Secret Manager IDs (values)
 SECRETS_MAPPING = {
     "SECRET_KEY": "DJANGO_SECRET_KEY",
-    "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
+    # "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
     "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
     "SHAREFILE_API": "SHAREFILE_API",
     "MONDAY_API_TOKEN": "MONDAY_DEV_API",
