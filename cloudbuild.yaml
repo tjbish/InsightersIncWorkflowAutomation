@@ -33,6 +33,9 @@ steps:
 images:
   - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'insighters-repo'
