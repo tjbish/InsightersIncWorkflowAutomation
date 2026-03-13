@@ -27,7 +27,7 @@ from .models import (
     TemporaryIntakeCredential,
 )
 from .email import send_intake_email, send_submission_confirmation_email
-from .pdf_engine import fill_individual_pdf
+from .pdf_engine import fill_business_pdf, fill_individual_pdf
 
 
 def _path_to_form_type(path: str):
@@ -447,6 +447,18 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
+
+            try:
+                timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+                output_path = (
+                    settings.BASE_DIR
+                    / "generated_forms"
+                    / "business"
+                    / f"business_submission_{submission.id}_{timestamp}.pdf"
+                )
+                fill_business_pdf(data, output_path=output_path)
+            except Exception as exc:
+                print(f"Failed to generate business PDF for submission {submission.id}: {exc}")
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
