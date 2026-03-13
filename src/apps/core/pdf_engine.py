@@ -7,9 +7,10 @@ from django.conf import settings
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import BooleanObject, NameObject, TextStringObject
 
-from .pdf_mapping import build_individual_pdf_field_values
+from .pdf_mapping import build_business_pdf_field_values, build_individual_pdf_field_values
 
 
+BUSINESS_TEMPLATE = settings.BASE_DIR / "src" / "apps" / "core" / "pdf_templates" / "BusinessForm.pdf"
 INDIVIDUAL_TEMPLATE = settings.BASE_DIR / "src" / "apps" / "core" / "pdf_templates" / "IndividualForm.pdf"
 
 
@@ -52,6 +53,26 @@ def fill_individual_pdf(
     output_path: Path,
     template_path: Path = INDIVIDUAL_TEMPLATE,
 ) -> Path:
+    field_values = build_individual_pdf_field_values(cleaned_data)
+    return _fill_pdf(field_values, output_path=output_path, template_path=template_path)
+
+
+def fill_business_pdf(
+    cleaned_data: dict[str, Any],
+    *,
+    output_path: Path,
+    template_path: Path = BUSINESS_TEMPLATE,
+) -> Path:
+    field_values = build_business_pdf_field_values(cleaned_data)
+    return _fill_pdf(field_values, output_path=output_path, template_path=template_path)
+
+
+def _fill_pdf(
+    field_values: dict[str, str],
+    *,
+    output_path: Path,
+    template_path: Path,
+) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     reader = PdfReader(str(template_path))
@@ -62,7 +83,6 @@ def fill_individual_pdf(
 
     _prepare_acroform(writer, reader)
 
-    field_values = build_individual_pdf_field_values(cleaned_data)
     for page in writer.pages:
         writer.update_page_form_field_values(
             page,
