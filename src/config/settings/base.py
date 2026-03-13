@@ -14,9 +14,12 @@ SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-fallback-key')
 
 DEBUG = env.bool('DEBUG', default=False)
 
+# The base URL for building absolute links in emails, etc.
+BASE_URL = env('BASE_URL', default='http://localhost:8000')
+
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.a.run.app",  # Matches any Cloud Run URL Fix When know more
+    "https://insighters-workflow-automation-428824878696.us-central1.run.app",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]

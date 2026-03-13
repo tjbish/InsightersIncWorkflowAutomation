@@ -19,13 +19,16 @@ def send_intake_email(request, credential_id, plain_password):
     logo_path = os.path.join(settings.BASE_DIR, 'src', 'static', 'insightersLogo.jpg')
     with open(logo_path, "rb") as image_file:
         encoded_logo = base64.b64encode(image_file.read()).decode('utf-8')
+    
+    # Safely strip any trailing slash from the base URL just in case
+    safe_base_url = settings.BASE_URL.rstrip('/')
 
     # Determine dynamic form link
     if credential.form_type == TemporaryIntakeCredential.BUSINESS:
-        form_link = "http://localhost:8000/business/"
+        form_link = f"{safe_base_url}/business/"
         form_type_text = "Business"
     else:
-        form_link = "http://localhost:8000/individual/"
+        form_link = f"{safe_base_url}/individual/"
         form_type_text = "Individual"
 
     context = {
