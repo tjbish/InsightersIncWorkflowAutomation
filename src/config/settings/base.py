@@ -113,6 +113,9 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_STORE_TOKENS = True
 SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+
 # Session Security Settings
 SESSION_COOKIE_AGE = 3600  # Session expires after 1 hour
 SESSION_SAVE_EVERY_REQUEST = True  # Reset the expiration timer on every request (idle timeout)
