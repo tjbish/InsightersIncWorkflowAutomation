@@ -100,7 +100,7 @@ def send_submission_confirmation_email(submission, credential, pdf_path=None):
         'form_type': form_type,
         'submission_date': submission.created_at.strftime("%m/%d/%Y at %I:%M %p"),
     }
-    html_content = render_to_string('email_submission_confirmation.html', context)
+    html_content = render_to_string('email_confirmation.html', context)
 
     attachments = []
     if pdf_path and os.path.exists(pdf_path):
@@ -115,6 +115,9 @@ def send_submission_confirmation_email(submission, credential, pdf_path=None):
         })
 
     # 3. Send via Graph API (Send TO the admin user)
+    # The application uses the Admin's own Microsoft account credentials 
+    # (stored from when they logged in) to send an email from themselves, to themselves.
+
     endpoint = "https://graph.microsoft.com/v1.0/me/sendMail"
     payload = {
         "message": {
@@ -132,6 +135,12 @@ def send_submission_confirmation_email(submission, credential, pdf_path=None):
             headers={"Authorization": f"Bearer {token.token}", "Content-Type": "application/json"},
             json=payload
         )
+        
+        if response.status_code == 202:
+            print(f"Success: Confirmation email sent to {admin_user.email}")
+        else:
+            print(f"Failed to send email. Graph API Status: {response.status_code} - {response.text}")
+            
         return response.status_code == 202
     except Exception as e:
         print(f"Error sending confirmation email: {e}")

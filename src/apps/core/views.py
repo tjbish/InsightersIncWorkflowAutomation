@@ -445,6 +445,8 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
+
+            # TODO: EJ - After the PDF Path is created for business intake, link to the admin confirmation email
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -456,6 +458,7 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
@@ -552,6 +555,8 @@ def personal_view(request):
                 date_signed=data["date_signed"],
             )
 
+           
+            pdf_path = None
             try:
                 timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
                 output_path = (
@@ -561,6 +566,7 @@ def personal_view(request):
                     / f"individual_submission_{submission.id}_{timestamp}.pdf"
                 )
                 fill_individual_pdf(data, output_path=output_path)
+                pdf_path = output_path
             except Exception as exc:
                 print(f"Failed to generate individual PDF for submission {submission.id}: {exc}")
 
@@ -574,6 +580,7 @@ def personal_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
+                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
 
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
