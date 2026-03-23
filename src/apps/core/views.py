@@ -27,7 +27,7 @@ from .models import (
     TemporaryIntakeCredential,
 )
 from .email import send_intake_email, send_submission_confirmation_email
-from .pdf_engine import fill_individual_pdf
+from .pdf_engine import fill_business_pdf, fill_individual_pdf
 
 
 def _path_to_form_type(path: str):
@@ -120,9 +120,11 @@ def _to_monday_column_values(submission_payload, column_map):
                 submission_payload.get("spouse_name"),
             )
 
-        # monday email columns typically require an object payload.
+        # column mappings for specific formatting (email requires text, phone number requires country code)
         if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
             column_values[monday_column_id] = {"email": value, "text": value}
+        elif local_key.lower() == "phone_number" or str(monday_column_id).lower().startswith("phone"):
+            column_values[monday_column_id] = {"phone": value, "countryShortName": "US"} # Hardcoded to only US clients
         else:
             column_values[monday_column_id] = value
 
@@ -445,8 +447,6 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
-
-            # TODO: EJ - After the PDF Path is created for business intake, link to the admin confirmation email
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
