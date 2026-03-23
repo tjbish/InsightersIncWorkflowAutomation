@@ -5,8 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
-    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   <title>Admin Dashboard | Insighters Inc</title>
   <style>
     .cta-button {
@@ -46,6 +45,26 @@
             style="max-width: 500px; height: auto; margin-bottom: 16px;" />
         </a>
         <h2 style="margin: 0 0 8px; text-align: left;">Insighters Inc Workflow Automation Dashboard </h2>
+        
+        {% if messages %}
+        <div class="mb-3">
+          {% for message in messages %}
+          {% if forloop.last %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <div class="mb-3">
+          <span class="text-muted small">Signed in as {{ user.email|default:user.username }}</span>
+          <a href="{% url 'account_logout' %}" class="btn btn-sm btn-outline-dark ms-2">Sign Out</a>
+        </div>
+        {% endif %}
         <div class="mt-4">
           <form method="post" novalidate>
             {% csrf_token %}
@@ -75,6 +94,20 @@
           <div>Login ID: <code>{{ generated_credential.login_id }}</code></div>
           <div>Password: <code>{{ generated_credential.password }}</code></div>
           <div>Expires At: {{ generated_credential.expires_at }}</div>
+          
+          <hr class="my-2">
+          {% if generated_credential.email_sent %}
+            <div class="text-success fw-bold">
+              ✓ Email Sent Successfully
+            </div>
+          {% else %}
+            <div class="text-danger fw-bold">
+              ⚠ Email Failed to Send
+            </div>
+            <div class="small text-danger">{{ generated_credential.email_error|default:"Unknown error" }}</div>
+            <div class="small fw-bold mt-1">Please copy credentials and send manually.</div>
+          {% endif %}
+
           <div class="small mt-2">This credential is one-time use. Ensure the client is aware of the credential
             expiration.</div>
         </div>
@@ -83,6 +116,19 @@
     </div>
   </main>
 
+  {% if user.is_authenticated %}
+  {{ session_timeout|default:3600|json_script:"session-timeout" }}
+  <script>
+    // Automatically redirect to logout after session expiration
+    // We add a small buffer (2 seconds) to ensure the backend session is definitely gone
+    const timeoutSeconds = JSON.parse(document.getElementById('session-timeout').textContent);
+    setTimeout(function() {
+      window.location.href = "{% url 'account_logout' %}?next={% url 'admin_login' %}?timeout=1";
+    }, (timeoutSeconds + 2) * 1000);
+  </script>
+  {% endif %}
+  <!-- Bootstrap JS for alert dismissal -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 </body>
 
 </html>

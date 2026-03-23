@@ -14,20 +14,32 @@ SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-fallback-key')
 
 DEBUG = env.bool('DEBUG', default=False)
 
+# The base URL for building absolute links in emails, etc.
+BASE_URL = env('BASE_URL', default='http://localhost:8000')
+
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+CSRF_TRUSTED_ORIGINS = [
+    "https://insighters-workflow-automation-428824878696.us-central1.run.app",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 
 # TODO: Remove default once temp IDs can be generated
 INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default=None)
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default=None)
-ADMIN_LOGIN_ID = env('ADMIN_LOGIN_ID', default='admin')
-ADMIN_LOGIN_PASSWORD = env('ADMIN_LOGIN_PASSWORD', default='admin')
 
 # Third Party API Settings
 SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
 SHAREFILE_API = env('SHAREFILE_API', default=None)
 SHAREFILE_URI = env('SHAREFILE_URI', default=None)
-MONDAY_API = env('MONDAY_API', default=None)
+
+MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None) # Change back to production API key after debugging is finished
+MONDAY_API_URL = env('MONDAY_API_URL', default='https://api.monday.com/v2')
+MONDAY_API_VERSION = env('MONDAY_API_VERSION', default='2024-04')
+MONDAY_BOARD_ID = env('MONDAY_BOARD_ID', default=None)
+MONDAY_GROUP_ID = env('MONDAY_GROUP_ID', default=None)
+MONDAY_BUSINESS_COLUMN_MAP = env.json('MONDAY_BUSINESS_COLUMN_MAP', default={})
+MONDAY_PERSONAL_COLUMN_MAP = env.json('MONDAY_PERSONAL_COLUMN_MAP', default={})
 
 INSTALLED_APPS = [
     # Sprint 2; make sure to check if we need or don't need admin rights
@@ -37,11 +49,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',  # Required by allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.microsoft',
     # Third party
     'django_bootstrap5',
-    # 'django_htmx', # Uncomment if using HTMX
     # Local apps
     'src.apps.core',
+]
+
+# allauth requires a site ID
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 MIDDLEWARE = [
@@ -52,8 +76,53 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'django_htmx.middleware.HtmxMiddleware', # Uncomment if using HTMX
+    'allauth.account.middleware.AccountMiddleware',
 ]
+
+
+MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID', default=None)
+MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET', default=None)
+MICROSOFT_TENANT_ID = env('ENTRA_TENANT_ID', default='common')
+
+
+SOCIALACCOUNT_PROVIDERS = {
+    'microsoft': {
+        'TENANT': MICROSOFT_TENANT_ID,
+        'APP': {
+            'client_id': MICROSOFT_CLIENT_ID,
+            'secret': MICROSOFT_CLIENT_SECRET,
+        },
+        'SCOPE': [
+            'User.Read',
+            'Mail.Send',
+            'offline_access',
+        ],
+        'AUTH_PARAMS': {
+            'prompt': 'select_account',
+            'access_type': 'offline',
+        },
+    }
+}
+
+# Recommended allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+LOGIN_REDIRECT_URL = '/dashboard'  # Where to send the admin after a successful login
+LOGIN_URL = '/admin/login/'
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_LOGOUT_ON_GET = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_STORE_TOKENS = True
+SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Session Security Settings
+SESSION_COOKIE_AGE = 3600  # Session expires after 1 hour
+SESSION_SAVE_EVERY_REQUEST = True  # Reset the expiration timer on every request (idle timeout)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Ensure session ends if the browser is closed
 
 ROOT_URLCONF = 'src.config.urls'
 
@@ -78,7 +147,7 @@ WSGI_APPLICATION = 'src.config.wsgi.application'
 # Database
 # This reads the DATABASE_URL environment variable set in docker-compose.yml
 DATABASES = {
-    'default': env.db(),
+    'default': env.db('DATABASE_URL', default='sqlite:///tmp/db.sqlite3'),
 }
 
 AUTH_PASSWORD_VALIDATORS = [

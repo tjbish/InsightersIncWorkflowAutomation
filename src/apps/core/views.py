@@ -1,26 +1,33 @@
 from functools import wraps
 from datetime import timedelta
 import secrets
+import json
+import requests
 
 from django.conf import settings
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.views.decorators.debug import sensitive_variables
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
+from django.forms.models import model_to_dict
 
 from .forms import (
     BusinessIntakeForm,
     PersonalIntakeForm,
     IntakeLoginForm,
-    AdminLoginForm,
     TemporaryIntakeCredentialCreateForm,
 )
+from allauth.socialaccount.models import SocialToken
 from .models import (
     BusinessIntakeSubmission,
     PersonalIntakeSubmission,
     TemporaryIntakeCredential,
 )
+from .email import send_intake_email, send_submission_confirmation_email
+from .pdf_engine import fill_business_pdf, fill_individual_pdf
 
 
 def _path_to_form_type(path: str):
@@ -41,6 +48,160 @@ def _generate_unique_intake_login_id():
         if not TemporaryIntakeCredential.objects.filter(login_id=candidate).exists():
             return candidate
     raise RuntimeError("Unable to generate a unique intake login ID.")
+
+
+def _serialize_submission(submission):
+    payload = model_to_dict(submission)
+    payload["id"] = submission.id
+    return json.loads(json.dumps(payload, cls=DjangoJSONEncoder))
+
+
+def _split_name(full_name):
+    raw = (full_name or "").strip()
+    if not raw:
+        return "", ""
+
+    if "," in raw:
+        last, first = [part.strip() for part in raw.split(",", 1)]
+        return first, last
+
+    parts = raw.split()
+    if len(parts) == 1:
+        return parts[0], ""
+
+    first = " ".join(parts[:-1]).strip()
+    last = parts[-1].strip()
+    return first, last
+
+
+def _format_last_first(first, last):
+    if first and last:
+        return f"{last}, {first}"
+    if last:
+        return last
+    return first
+
+
+def _build_personal_monday_item_name(client_name, spouse_name=None):
+    client_first, client_last = _split_name(client_name)
+    base_name = _format_last_first(client_first, client_last).strip()
+    if not base_name:
+        base_name = (client_name or "").strip()
+
+    spouse_first, spouse_last = _split_name(spouse_name)
+    if not spouse_first and not spouse_last:
+        return base_name
+
+    if spouse_last and client_last and spouse_last.lower() == client_last.lower():
+        spouse_part = spouse_first or spouse_last
+    elif spouse_last:
+        spouse_part = _format_last_first(spouse_first, spouse_last)
+    else:
+        spouse_part = spouse_first
+
+    if spouse_part:
+        return f"{base_name} & {spouse_part}"
+    return base_name
+
+
+def _to_monday_column_values(submission_payload, column_map):
+    column_values = {}
+    for local_key, monday_column_id in (column_map or {}).items():
+        if not monday_column_id:
+            continue
+
+        value = submission_payload.get(local_key)
+        if value in (None, ""):
+            continue
+
+        if local_key == "client_name":
+            value = _build_personal_monday_item_name(
+                submission_payload.get("client_name"),
+                submission_payload.get("spouse_name"),
+            )
+
+        # column mappings for specific formatting (email requires text, phone number requires country code)
+        if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
+            column_values[monday_column_id] = {"email": value, "text": value}
+        elif local_key.lower() == "phone_number" or str(monday_column_id).lower().startswith("phone"):
+            column_values[monday_column_id] = {"phone": value, "countryShortName": "US"} # Hardcoded to only US clients
+        else:
+            column_values[monday_column_id] = value
+
+    return column_values
+
+
+def _monday_create_item(item_name, column_values):
+    token = getattr(settings, "MONDAY_API_TOKEN", None) or getattr(settings, "MONDAY_API", None)
+    board_id = getattr(settings, "MONDAY_BOARD_ID", None)
+    group_id = getattr(settings, "MONDAY_GROUP_ID", None)
+    api_url = getattr(settings, "MONDAY_API_URL", "https://api.monday.com/v2")
+    api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
+
+    if not token:
+        raise RuntimeError("MONDAY_API_TOKEN (or MONDAY_API) is not configured.")
+    if not board_id:
+        raise RuntimeError("MONDAY_BOARD_ID is not configured.")
+
+    headers = {
+        "Authorization": token,
+        "Content-Type": "application/json",
+        "API-Version": api_version,
+    }
+
+    if group_id:
+        mutation = """
+        mutation ($board_id: ID!, $group_id: String!, $item_name: String!, $column_values: JSON!) {
+          create_item(
+            board_id: $board_id,
+            group_id: $group_id,
+            item_name: $item_name,
+            column_values: $column_values
+          ) {
+            id
+            name
+          }
+        }
+        """
+        variables = {
+            "board_id": str(board_id),
+            "group_id": group_id,
+            "item_name": item_name,
+            "column_values": json.dumps(column_values),
+        }
+    else:
+        mutation = """
+        mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
+          create_item(
+            board_id: $board_id,
+            item_name: $item_name,
+            column_values: $column_values
+          ) {
+            id
+            name
+          }
+        }
+        """
+        variables = {
+            "board_id": str(board_id),
+            "item_name": item_name,
+            "column_values": json.dumps(column_values),
+        }
+
+    response = requests.post(
+        api_url,
+        headers=headers,
+        json={"query": mutation, "variables": variables},
+        timeout=30,
+    )
+    if not response.ok:
+        raise RuntimeError(f"monday HTTP {response.status_code}: {response.text}")
+
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(f"monday GraphQL errors: {payload['errors']}")
+
+    return payload["data"]["create_item"]
 
 
 def authenticate_intake_login(login_id: str, password: str, next_path: str = None):
@@ -81,32 +242,77 @@ def require_intake_login(view_func):
 
     return _wrapped
 
-def validate_admin_login(login_id: str, password: str) -> bool:
-    # TODO: Replace with DB lookup when credentials are stored.
-    return login_id == settings.ADMIN_LOGIN_ID and password == settings.ADMIN_LOGIN_PASSWORD
-
-def require_admin_login(view_func):
-    @wraps(view_func)
-    def _wrapped(request, *args, **kwargs):
-        allowed_path = request.session.get("admin_login_ok_for")
-        if allowed_path == request.path:
-            # Keep this through GET->POST flow so admin dashboard actions can submit.
-            return view_func(request, *args, **kwargs)
-
-        request.session["admin_login_next"] = request.path
-        return redirect("admin_login")
-
-    return _wrapped
-
 
 def home(request):
-    request.session.pop("admin_login_ok_for", None)
     return render(request, "home.html")
 
-@require_admin_login
+
+def submission_processing_view(request):
+    submitted_form_type = request.session.pop("submitted_form_type", None)
+    business_submission = request.session.get("monday_pending_business_submission")
+    personal_submission = request.session.get("monday_pending_personal_submission")
+    has_pending_sync = bool(business_submission or personal_submission)
+    sync_error = None
+
+    if not has_pending_sync and not submitted_form_type:
+        return redirect("home")
+
+    if has_pending_sync:
+        try:
+            if business_submission:
+                business_item_name = business_submission.get("business_name") or "Business Intake Submission"
+                business_columns = _to_monday_column_values(
+                    business_submission,
+                    getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
+                )
+                _monday_create_item(
+                    item_name=business_item_name,
+                    column_values=business_columns,
+                )
+                request.session.pop("monday_pending_business_submission", None)
+
+            if personal_submission:
+                personal_item_name = _build_personal_monday_item_name(
+                    personal_submission.get("client_name"),
+                    personal_submission.get("spouse_name"),
+                ) or "Personal Intake Submission"
+                personal_columns = _to_monday_column_values(
+                    personal_submission,
+                    getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
+                )
+                _monday_create_item(
+                    item_name=personal_item_name,
+                    column_values=personal_columns,
+                )
+                request.session.pop("monday_pending_personal_submission", None)
+
+            # Invalidate one-time intake form access only after monday sync succeeds.
+            request.session.pop("intake_login_id", None)
+            request.session.pop("intake_login_ok_for", None)
+            request.session.pop("intake_is_env_bypass", None)
+            has_pending_sync = False
+        except Exception as exc:
+            sync_error = str(exc)
+
+    return render(
+        request,
+        "submission_processing.html",
+        {
+            "has_pending_sync": has_pending_sync,
+            "submitted_form_type": submitted_form_type,
+            "sync_error": sync_error,
+        },
+    )
+
+
+@login_required(login_url="admin_login")
 def admin_dashboard(request):
     # Currently cleans up expired credentials on dashboard startup, can disable this to maintain temp ID persistence in the DB
     _cleanup_expired_temp_credentials()
+
+    # Check if the admin has a Microsoft token (required for sending emails)
+    if not SocialToken.objects.filter(account__user=request.user, account__provider='microsoft').exists():
+        messages.warning(request, f"No Microsoft token found for user: '{request.user}'. Emails will fail to send. Please log out and sign in via Microsoft.")
 
     generated_credential = None
     if request.method == "POST":
@@ -114,7 +320,9 @@ def admin_dashboard(request):
         if form.is_valid():
             expires_at = timezone.now() + timedelta(hours=24)
             generated_password = secrets.token_urlsafe(12)
-            created_by_login_id = request.session.get("admin_login_id", "unknown-admin")
+            
+            created_by_login_id = request.user.email if request.user.email else request.user.username
+
             try:
                 login_id = _generate_unique_intake_login_id()
             except RuntimeError:
@@ -128,16 +336,39 @@ def admin_dashboard(request):
                     created_by_login_id=created_by_login_id,
                     expires_at=expires_at,
                 )
+
+                # Attempt to send the email via Microsoft Graph
+                email_sent = False
+                email_error = None
+                try:
+                    if send_intake_email(request, credential.id, generated_password):
+                        email_sent = True
+                        messages.success(request, f"Credential created and email sent to {credential.client_email}")
+                    else:
+                        email_error = "API Error (Non-202 response)"
+                        messages.warning(request, "Credential created, but email sending failed (API error).")
+                except Exception as e:
+                    email_error = str(e)
+                    messages.warning(request, f"Credential created, but email failed: {str(e)}")
+
                 generated_credential = {
                     "login_id": credential.login_id,
                     "password": generated_password,
                     "form_type": credential.get_form_type_display(),
-                    "expires_at": credential.expires_at,
+                    # Convert date to string so it can be stored in the session (JSON)
+                    "expires_at": credential.expires_at.strftime("%m/%d/%Y %I:%M %p"),
                     "client_email": credential.client_email,
+                    "email_sent": email_sent,
+                    "email_error": email_error,
                 }
-                form = TemporaryIntakeCredentialCreateForm()
+                
+                # PRG Pattern: Store data in session and redirect to prevent duplicate submissions on refresh
+                request.session['generated_credential'] = generated_credential
+                return redirect('admin_dashboard')
     else:
         form = TemporaryIntakeCredentialCreateForm()
+        # Check if we have a credential from a recent redirect
+        generated_credential = request.session.pop('generated_credential', None)
 
     return render(
         request,
@@ -145,6 +376,7 @@ def admin_dashboard(request):
         {
             "create_credential_form": form,
             "generated_credential": generated_credential,
+            "session_timeout": getattr(settings, "SESSION_COOKIE_AGE", 3600),
         },
     )
 
@@ -157,7 +389,7 @@ def business_view(request):
         if form.is_valid():
             data = form.cleaned_data
 
-            BusinessIntakeSubmission.objects.create(
+            submission = BusinessIntakeSubmission.objects.create(
                 # --- Owner info (NO SSN STORED) ---
                 owner1_name=data["owner1_name"],
                 owner1_ownership=data["owner1_ownership"],
@@ -215,6 +447,20 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
+
+            pdf_path = None
+            try:
+                timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+                output_path = (
+                    settings.BASE_DIR
+                    / "generated_forms"
+                    / "business"
+                    / f"business_submission_{submission.id}_{timestamp}.pdf"
+                )
+                fill_business_pdf(data, output_path=output_path)
+            except Exception as exc:
+                print(f"Failed to generate business PDF for submission {submission.id}: {exc}")
+            pdf_path = output_path
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -226,12 +472,15 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
+                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
 
-            request.session.pop("intake_login_id", None)
-            request.session.pop("intake_login_ok_for", None)
-            request.session.pop("intake_is_env_bypass", None)
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
-            return HttpResponse("Thank you! We have received your information.")
+            serialized = _serialize_submission(submission)
+            request.session["monday_pending_business_submission"] = serialized
+            request.session["submitted_form_type"] = "business"
+            # Lock access away from the form endpoint until monday sync finalizes.
+            request.session["intake_login_ok_for"] = "/submission-processing/"
+            return redirect("submission_processing")
         else:
             print(f"Business Form Validation Errors: {form.errors}")
     else:
@@ -251,15 +500,19 @@ def personal_view(request):
             # MultipleChoiceField returns a python list -> store as "wages,pension,ss"
             income_list = data.get("income_sources", [])
             if data.get("income_other"):
-                income_list.append(f"{data['income_other']}")
+                # Sanitize commas to prevent breaking the CSV storage format
+                clean_income_other = data['income_other'].replace(",", " ")
+                income_list.append(clean_income_other)
             income_str = ",".join(income_list)
 
             expense_list = data.get("expenses", [])
             if data.get("expenses_other"):
-                expense_list.append(f"{data['expenses_other']}")
+                # Sanitize commas to prevent breaking the CSV storage format
+                clean_expenses_other = data['expenses_other'].replace(",", " ")
+                expense_list.append(clean_expenses_other)
             expense_str = ",".join(expense_list)
 
-            PersonalIntakeSubmission.objects.create(
+            submission = PersonalIntakeSubmission.objects.create(
                 # --- Filing details ---
                 client_status=data["client_status"],
                 tax_year=data["tax_year"],
@@ -311,10 +564,25 @@ def personal_view(request):
                 expenses=expense_str or None,
 
                 # --- Certification ---
-                certification = data.get("certification", False),
+                certification=data.get("certification", False),
                 client_signature=data["client_signature"],
                 date_signed=data["date_signed"],
             )
+
+           
+            pdf_path = None
+            try:
+                timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+                output_path = (
+                    settings.BASE_DIR
+                    / "generated_forms"
+                    / "individual"
+                    / f"individual_submission_{submission.id}_{timestamp}.pdf"
+                )
+                fill_individual_pdf(data, output_path=output_path)
+                pdf_path = output_path
+            except Exception as exc:
+                print(f"Failed to generate individual PDF for submission {submission.id}: {exc}")
 
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -326,12 +594,15 @@ def personal_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
+                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
 
-            request.session.pop("intake_login_id", None)
-            request.session.pop("intake_login_ok_for", None)
-            request.session.pop("intake_is_env_bypass", None)
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
-            return HttpResponse("Thank you! Individual Intake received.")
+            serialized = _serialize_submission(submission)
+            request.session["monday_pending_personal_submission"] = serialized
+            request.session["submitted_form_type"] = "individual"
+            # Lock access away from the form endpoint until monday sync finalizes.
+            request.session["intake_login_ok_for"] = "/submission-processing/"
+            return redirect("submission_processing")
         else:
             print(f"Personal Form Validation Errors: {form.errors}")
     else:
@@ -371,25 +642,8 @@ def intake_login(request):
 
     return render(request, "intake_login.html", {"form": form})
 
-@sensitive_variables("login_id", "password")
 def admin_login(request):
-    if request.method == "POST":
-        form = AdminLoginForm(request.POST) # create class in form
-        if form.is_valid():
-            login_id = form.cleaned_data["login_id"]
-            password = form.cleaned_data["password"]
+    if request.user.is_authenticated:
+        return redirect("admin_dashboard")
 
-            if validate_admin_login(login_id, password):
-                next_path = request.session.pop("admin_login_next", None)
-                request.session["admin_login_id"] = login_id
-                if next_path:
-                    request.session["admin_login_ok_for"] = next_path
-                    return redirect(next_path)
-
-                return redirect("home")
-
-            form.add_error(None, "Invalid login ID or password.")
-    else:
-        form = AdminLoginForm()
-
-    return render(request, "admin_login.html", {"form": form})
+    return render(request, "admin_login.html")

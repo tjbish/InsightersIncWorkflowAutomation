@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f8f9fa; padding: 15px; border-bottom: 2px solid #0d6efd; margin-bottom: 20px; }
+        .details { background-color: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .footer { margin-top: 20px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Intake Form Completed</h2>
+        </div>
+        <div class="details">
+            <p><strong>Client:</strong> {{ client_name }}</p>
+            <p><strong>Form Type:</strong> {{ form_type }}</p>
+            <p><strong>Submission Date:</strong> {{ submission_date }}</p>
+            <p>The completed intake form is attached to this email.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from Insighters Inc Workflow Automation.</p>
+        </div>
+    </div>
+</body>
+</html>
