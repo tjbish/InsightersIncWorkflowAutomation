@@ -447,6 +447,20 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
+
+            pdf_path = None
+            try:
+                timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+                output_path = (
+                    settings.BASE_DIR
+                    / "generated_forms"
+                    / "business"
+                    / f"business_submission_{submission.id}_{timestamp}.pdf"
+                )
+                fill_business_pdf(data, output_path=output_path)
+            except Exception as exc:
+                print(f"Failed to generate business PDF for submission {submission.id}: {exc}")
+            pdf_path = output_path
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -458,7 +472,7 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential)
+                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
