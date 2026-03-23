@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+import re
 from typing import Any
 
 
@@ -89,6 +90,62 @@ EXPENSE_FIELDS = {
 }
 
 
+BUSINESS_DIRECT_TEXT_FIELDS = {
+    "owner1_name": "owner1_name",
+    "owner1_ssn": "owner1_ssn",
+    "owner1_ownership": "owner1_ownership",
+    "owner2_name": "owner2_name",
+    "owner2_ssn": "owner2_ssn",
+    "owner2_ownership": "owner2_ownership",
+    "email": "email",
+    "business_name": "business_name",
+    "fin_number": "fin_number",
+    "address": "address",
+    "city": "city",
+    "state": "state",
+    "zip_code": "zip_code",
+    "business_type": "business_type",
+    "date_established": "date_established",
+    "date_last_return": "date_last_return",
+    "sales_yr1": "sales_yr1",
+    "sales_yr2": "sales_yr2",
+    "sales_yr3": "sales_yr3",
+    "sales_current": "sales_current",
+    "fiscal_year_end": "fiscal_year_end",
+    "bank_name": "bank_name",
+    "bank_account_type": "bank_account_type",
+    "bank_account_number": "bank_account_number",
+    "bank_contact_name": "bank_contact",
+    "bank_name2": "bank_name2",
+    "bank_account_type2": "bank_account_type2",
+    "bank_account_number2": "bank_account_number2",
+    "bank_contact_name2": "bank_contact2",
+    "accounting_software": "accounting_software",
+    "num_employees": "num_employees",
+    "payroll_id_state": "payroll_id_state",
+    "payroll_id_county": "payroll_id_country",
+    "payroll_id_city": "payroll_id_city",
+    "sales_tax_state": "sales_tax_state",
+    "sales_tax_county": "sales_tax_country",
+    "sales_tax_city": "sales_tax_city",
+}
+
+
+BUSINESS_STRUCTURE_FIELDS = {
+    "corp": "business_structure",
+    "s_corp": "business_structure2",
+    "llc": "business_structure3",
+    "partnership": "business_structure4",
+    "proprietorship": "business_structure5",
+}
+
+
+BUSINESS_ACCOUNTING_PERIOD_FIELDS = {
+    "calendar": "accounting_period1",
+    "fiscal": "accounting_period2",
+}
+
+
 def _to_text(value: Any) -> str:
     if value is None:
         return ""
@@ -97,6 +154,13 @@ def _to_text(value: Any) -> str:
     if isinstance(value, Decimal):
         return format(value, "f")
     return str(value)
+
+
+def _split_phone_number(value: Any) -> tuple[str, str]:
+    digits = re.sub(r"\D", "", _to_text(value))
+    if not digits:
+        return "", ""
+    return digits[:3], digits[3:10]
 
 
 def _empty_choice_fields() -> dict[str, str]:
@@ -156,5 +220,50 @@ def build_individual_pdf_field_values(cleaned_data: dict[str, Any]) -> dict[str,
 
     if cleaned_data.get("certification"):
         field_values["certification"] = X_MARK
+
+    return field_values
+
+
+def build_business_pdf_field_values(cleaned_data: dict[str, Any]) -> dict[str, str]:
+    field_values = {
+        "business_structure": "",
+        "business_structure2": "",
+        "business_structure3": "",
+        "business_structure4": "",
+        "business_structure5": "",
+        "accounting_period1": "",
+        "accounting_period2": "",
+        "has_payroll": "",
+        "phone_number1": "",
+        "phone_number2": "",
+        "cell_number1": "",
+        "cell_number2": "",
+        "fax_number1": "",
+        "fax_number2": "",
+    }
+
+    for django_field, pdf_field in BUSINESS_DIRECT_TEXT_FIELDS.items():
+        field_values[pdf_field] = _to_text(cleaned_data.get(django_field))
+
+    phone_fields = {
+        "phone_number": ("phone_number1", "phone_number2"),
+        "cell_number": ("cell_number1", "cell_number2"),
+        "fax_number": ("fax_number1", "fax_number2"),
+    }
+    for django_field, (pdf_field_1, pdf_field_2) in phone_fields.items():
+        first, second = _split_phone_number(cleaned_data.get(django_field))
+        field_values[pdf_field_1] = first
+        field_values[pdf_field_2] = second
+
+    business_structure = cleaned_data.get("business_structure")
+    if business_structure in BUSINESS_STRUCTURE_FIELDS:
+        field_values[BUSINESS_STRUCTURE_FIELDS[business_structure]] = X_MARK
+
+    accounting_period = cleaned_data.get("accounting_period")
+    if accounting_period in BUSINESS_ACCOUNTING_PERIOD_FIELDS:
+        field_values[BUSINESS_ACCOUNTING_PERIOD_FIELDS[accounting_period]] = X_MARK
+
+    if cleaned_data.get("has_payroll"):
+        field_values["has_payroll"] = X_MARK
 
     return field_values

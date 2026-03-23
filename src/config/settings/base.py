@@ -14,9 +14,12 @@ SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-fallback-key')
 
 DEBUG = env.bool('DEBUG', default=False)
 
+# The base URL for building absolute links in emails, etc.
+BASE_URL = env('BASE_URL', default='http://localhost:8000')
+
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.a.run.app",  # Matches any Cloud Run URL Fix When know more
+    "https://insighters-workflow-automation-428824878696.us-central1.run.app",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
@@ -77,8 +80,8 @@ MIDDLEWARE = [
 ]
 
 
-MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID')
-MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET')
+MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID', default=None)
+MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET', default=None)
 MICROSOFT_TENANT_ID = env('ENTRA_TENANT_ID', default='common')
 
 
@@ -113,6 +116,9 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_STORE_TOKENS = True
 SOCIALACCOUNT_ADAPTER = 'allauth.socialaccount.adapter.DefaultSocialAccountAdapter'
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+
 # Session Security Settings
 SESSION_COOKIE_AGE = 3600  # Session expires after 1 hour
 SESSION_SAVE_EVERY_REQUEST = True  # Reset the expiration timer on every request (idle timeout)
@@ -141,7 +147,7 @@ WSGI_APPLICATION = 'src.config.wsgi.application'
 # Database
 # This reads the DATABASE_URL environment variable set in docker-compose.yml
 DATABASES = {
-    'default': env.db(),
+    'default': env.db('DATABASE_URL', default='sqlite:///tmp/db.sqlite3'),
 }
 
 AUTH_PASSWORD_VALIDATORS = [

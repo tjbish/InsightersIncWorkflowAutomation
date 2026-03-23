@@ -27,7 +27,7 @@ from .models import (
     TemporaryIntakeCredential,
 )
 from .email import send_intake_email, send_submission_confirmation_email
-from .pdf_engine import fill_individual_pdf
+from .pdf_engine import fill_business_pdf, fill_individual_pdf
 
 
 def _path_to_form_type(path: str):
@@ -120,9 +120,11 @@ def _to_monday_column_values(submission_payload, column_map):
                 submission_payload.get("spouse_name"),
             )
 
-        # monday email columns typically require an object payload.
+        # column mappings for specific formatting (email requires text, phone number requires country code)
         if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
             column_values[monday_column_id] = {"email": value, "text": value}
+        elif local_key.lower() == "phone_number" or str(monday_column_id).lower().startswith("phone"):
+            column_values[monday_column_id] = {"phone": value, "countryShortName": "US"} # Hardcoded to only US clients
         else:
             column_values[monday_column_id] = value
 
@@ -445,6 +447,20 @@ def business_view(request):
                 sales_tax_county=data.get("sales_tax_county") or None,
                 sales_tax_city=data.get("sales_tax_city") or None,
             )
+
+            pdf_path = None
+            try:
+                timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+                output_path = (
+                    settings.BASE_DIR
+                    / "generated_forms"
+                    / "business"
+                    / f"business_submission_{submission.id}_{timestamp}.pdf"
+                )
+                fill_business_pdf(data, output_path=output_path)
+            except Exception as exc:
+                print(f"Failed to generate business PDF for submission {submission.id}: {exc}")
+            pdf_path = output_path
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -456,6 +472,7 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
+                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
@@ -552,6 +569,8 @@ def personal_view(request):
                 date_signed=data["date_signed"],
             )
 
+           
+            pdf_path = None
             try:
                 timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
                 output_path = (
@@ -561,6 +580,7 @@ def personal_view(request):
                     / f"individual_submission_{submission.id}_{timestamp}.pdf"
                 )
                 fill_individual_pdf(data, output_path=output_path)
+                pdf_path = output_path
             except Exception as exc:
                 print(f"Failed to generate individual PDF for submission {submission.id}: {exc}")
 
@@ -574,6 +594,7 @@ def personal_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
+                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
 
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)

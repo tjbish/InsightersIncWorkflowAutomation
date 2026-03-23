@@ -50,7 +50,7 @@ for setting_name, secret_id in SECRETS_MAPPING.items():
 
 if "DATABASE_URL_VAL" in globals():
     # Re-configure database using the URL fetched from Secret Manager
-    DATABASES['default'] = env.db_url(globals()["DATABASE_URL_VAL"])
+    DATABASES['default'] = environ.Env.db_url_config(globals()["DATABASE_URL_VAL"])
 
 if "MICROSOFT_CLIENT_SECRET" in globals():
     # Update the AllAuth provider config with the fetched secret
