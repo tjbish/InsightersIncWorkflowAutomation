@@ -13,14 +13,6 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
-# For Prod Testing
-import logging
-import sys
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.debug import ExceptionReporter # 1. Import the reporter
-
-logger = logging.getLogger(__name__)
 
 from .forms import (
     BusinessIntakeForm,
@@ -36,41 +28,6 @@ from .models import (
 )
 from .email import send_intake_email, send_submission_confirmation_email
 from .pdf_engine import fill_business_pdf, fill_individual_pdf
-
-# Prod Key Testing
-logger = logging.getLogger(__name__)
-
-# A hidden endpoint to test GCP Cloud Logging and Error Reporting
-@csrf_exempt
-def prod_security_test_view(request):
-    if request.method == "POST":
-        logger.info("Received POST request. Initiating intentional crash...")
-        
-        try:
-            # Trigger the crash
-            raise RuntimeError("Intentional crash to test POST parameter redaction in GCP!")
-        except Exception:
-            # 2. Catch it, generate the Django Error Report (which uses your filter)
-            reporter = ExceptionReporter(request, *sys.exc_info())
-            
-            # 3. Get the raw text version of the report
-            secure_crash_report = reporter.get_traceback_text()
-            
-            # 4. Dump the heavily redacted report directly into Google Cloud Logging
-            logger.error("--- DJANGO SECURE CRASH REPORT ---")
-            logger.error(secure_crash_report)
-            
-            return HttpResponse("Secure crash report successfully written to GCP Logs!")
-
-    html = """
-    <form method="POST">
-        <input type="text" name="fin_number" value="99-9999999">
-        <input type="text" name="client_ssn" value="000-00-0000">
-        <input type="text" name="password" value="super_secret_test_password">
-        <button type="submit">Crash The Server</button>
-    </form>
-    """
-    return HttpResponse(html)
 
 
 def _path_to_form_type(path: str):
