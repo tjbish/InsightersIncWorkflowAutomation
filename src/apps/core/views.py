@@ -16,6 +16,7 @@ from django.forms.models import model_to_dict
 # For Prod Testing
 import logging
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from .forms import (
     BusinessIntakeForm,
@@ -36,6 +37,7 @@ from .pdf_engine import fill_business_pdf, fill_individual_pdf
 logger = logging.getLogger(__name__)
 
 # A hidden endpoint to test GCP Cloud Logging and Error Reporting
+@csrf_exempt
 def prod_security_test_view(request):
     # 1. Test the Dynamic Logging Filter
     # In production, this should fetch your fake secret from settings
