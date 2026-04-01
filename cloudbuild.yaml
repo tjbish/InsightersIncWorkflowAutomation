@@ -14,7 +14,24 @@ steps:
       - 'push'
       - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
 
-  # 3. Deploy to Cloud Run
+# 3. Run Django Database Migrations via Cloud SQL Proxy (THE NEW STEP)
+  - name: 'gcr.io/google-appengine/exec-wrapper'
+    args:
+      - '-i'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
+      - '-s'
+      - '$_DB_CONNECTION_NAME'
+      - '-e'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - '-e'
+      - 'DJANGO_SETTINGS_MODULE=src.config.settings.production'
+      - '--'
+      - 'python'
+      - 'manage.py'
+      - 'migrate'
+      - '--noinput'
+
+  # 4. Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
