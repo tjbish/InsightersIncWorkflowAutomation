@@ -15,8 +15,12 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
 # For Prod Testing
 import logging
+import sys
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.debug import ExceptionReporter # 1. Import the reporter
+
+logger = logging.getLogger(__name__)
 
 from .forms import (
     BusinessIntakeForm,
@@ -39,33 +43,33 @@ logger = logging.getLogger(__name__)
 # A hidden endpoint to test GCP Cloud Logging and Error Reporting
 @csrf_exempt
 def prod_security_test_view(request):
-    # 1. Test the Dynamic Logging Filter
-    # In production, this should fetch your fake secret from settings
-    test_secret = getattr(settings, 'TEST_LOGGING_SECRET', 'insighters_fake_prod_secret_999')
-    
-    logger.info("--- STARTING PROD SECURITY TEST ---")
-    logger.info(f"Attempting to log a secure value: {test_secret}")
-    logger.info("If the dynamic filter works, the string above should be REDACTED.")
-
     if request.method == "POST":
-        # 2. Test the Global Exception Filter
-        # We simulate receiving a sensitive form submission and crashing
         logger.info("Received POST request. Initiating intentional crash...")
         
-        # This will trigger Django's 500 Server Error process
-        raise RuntimeError("Intentional crash to test POST parameter redaction in GCP!")
+        try:
+            # Trigger the crash
+            raise RuntimeError("Intentional crash to test POST parameter redaction in GCP!")
+        except Exception:
+            # 2. Catch it, generate the Django Error Report (which uses your filter)
+            reporter = ExceptionReporter(request, *sys.exc_info())
+            
+            # 3. Get the raw text version of the report
+            secure_crash_report = reporter.get_traceback_text()
+            
+            # 4. Dump the heavily redacted report directly into Google Cloud Logging
+            logger.error("--- DJANGO SECURE CRASH REPORT ---")
+            logger.error(secure_crash_report)
+            
+            return HttpResponse("Secure crash report successfully written to GCP Logs!")
 
-    # A simple form to submit fake data to itself
     html = """
     <form method="POST">
-        <input type="hidden" name="csrfmiddlewaretoken" value="{}">
         <input type="text" name="fin_number" value="99-9999999">
         <input type="text" name="client_ssn" value="000-00-0000">
         <input type="text" name="password" value="super_secret_test_password">
         <button type="submit">Crash The Server</button>
     </form>
-    """.format(request.META.get('CSRF_COOKIE', ''))
-    
+    """
     return HttpResponse(html)
 
 
