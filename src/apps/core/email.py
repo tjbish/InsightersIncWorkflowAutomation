@@ -7,7 +7,9 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from allauth.socialaccount.models import SocialToken
 from .models import TemporaryIntakeCredential
+from django.views.decorators.debug import sensitive_variables
 
+@sensitive_variables('plain_password', 'token', 'encoded_logo', 'payload', 'html_content')
 def send_intake_email(request, credential_id, plain_password):
     credential = TemporaryIntakeCredential.objects.get(id=credential_id)
     token = SocialToken.objects.filter(account__user=request.user, account__provider='microsoft').first()
@@ -74,6 +76,7 @@ def send_intake_email(request, credential_id, plain_password):
 
 # Used for sending a confirmation email to the admin user as well as the pdf generated
 # from the intake forms
+@sensitive_variables('token', 'encoded_pdf', 'payload', 'html_content', 'attachments')
 def send_submission_confirmation_email(submission, credential, pdf_path=None):
     # 1. Find the admin user who created the credential
     admin_identifier = credential.created_by_login_id

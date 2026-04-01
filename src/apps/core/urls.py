@@ -9,5 +9,8 @@ urlpatterns = [
     path("individual/", views.personal_view, name="individual_intake"),
     path("submission-processing/", views.submission_processing_view, name="submission_processing"),
     path("dashboard/", views.admin_dashboard, name="admin_dashboard"),
-    path("admin-login/", views.admin_login, name="admin_login")
+    path("admin-login/", views.admin_login, name="admin_login"),
+    
+    # Prod Key Logging Testing
+    path("prod-test/", views.prod_security_test_view, name="admin_login")
 ]

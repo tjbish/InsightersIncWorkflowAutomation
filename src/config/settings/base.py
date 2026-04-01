@@ -167,3 +167,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'src' / 'static']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Enforce global scrubbing of sensitive POST data on crash reports
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'src.apps.core.error_filters.GlobalSensitiveDataFilter'

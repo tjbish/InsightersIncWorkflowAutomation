@@ -8,11 +8,14 @@ from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.decorators.debug import sensitive_variables
+from django.views.decorators.debug import sensitive_variables, sensitive_post_parameters
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.forms.models import model_to_dict
+# For Prod Testing
+import logging
+from django.http import HttpResponse
 
 from .forms import (
     BusinessIntakeForm,
@@ -28,6 +31,40 @@ from .models import (
 )
 from .email import send_intake_email, send_submission_confirmation_email
 from .pdf_engine import fill_business_pdf, fill_individual_pdf
+
+# Prod Key Testing
+logger = logging.getLogger(__name__)
+
+# A hidden endpoint to test GCP Cloud Logging and Error Reporting
+def prod_security_test_view(request):
+    # 1. Test the Dynamic Logging Filter
+    # In production, this should fetch your fake secret from settings
+    test_secret = getattr(settings, 'TEST_LOGGING_SECRET', 'insighters_fake_prod_secret_999')
+    
+    logger.info("--- STARTING PROD SECURITY TEST ---")
+    logger.info(f"Attempting to log a secure value: {test_secret}")
+    logger.info("If the dynamic filter works, the string above should be REDACTED.")
+
+    if request.method == "POST":
+        # 2. Test the Global Exception Filter
+        # We simulate receiving a sensitive form submission and crashing
+        logger.info("Received POST request. Initiating intentional crash...")
+        
+        # This will trigger Django's 500 Server Error process
+        raise RuntimeError("Intentional crash to test POST parameter redaction in GCP!")
+
+    # A simple form to submit fake data to itself
+    html = """
+    <form method="POST">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{}">
+        <input type="text" name="fin_number" value="99-9999999">
+        <input type="text" name="client_ssn" value="000-00-0000">
+        <input type="text" name="password" value="super_secret_test_password">
+        <button type="submit">Crash The Server</button>
+    </form>
+    """.format(request.META.get('CSRF_COOKIE', ''))
+    
+    return HttpResponse(html)
 
 
 def _path_to_form_type(path: str):
@@ -130,7 +167,7 @@ def _to_monday_column_values(submission_payload, column_map):
 
     return column_values
 
-
+@sensitive_variables('token', 'headers', 'variables', 'mutation', 'column_values')
 def _monday_create_item(item_name, column_values):
     token = getattr(settings, "MONDAY_API_TOKEN", None) or getattr(settings, "MONDAY_API", None)
     board_id = getattr(settings, "MONDAY_BOARD_ID", None)
@@ -304,7 +341,7 @@ def submission_processing_view(request):
         },
     )
 
-
+@sensitive_variables('generated_password')
 @login_required(login_url="admin_login")
 def admin_dashboard(request):
     # Currently cleans up expired credentials on dashboard startup, can disable this to maintain temp ID persistence in the DB
@@ -380,8 +417,8 @@ def admin_dashboard(request):
         },
     )
 
-
-@sensitive_variables()  # helps prevent sensitive values showing up in debug output
+@sensitive_post_parameters('fin_number', 'bank_account_number', 'bank_routing_number')
+@sensitive_variables()
 @require_intake_login
 def business_view(request):
     if request.method == "POST":
@@ -488,7 +525,7 @@ def business_view(request):
 
     return render(request, "business_intake.html", {"form": form})
 
-
+@sensitive_post_parameters('fin_number', 'bank_account_number', 'bank_routing_number')
 @sensitive_variables()
 @require_intake_login
 def personal_view(request):
@@ -610,7 +647,7 @@ def personal_view(request):
 
     return render(request, "personal_intake.html", {"form": form})
 
-
+@sensitive_post_parameters('password')
 @sensitive_variables("login_id", "password")
 def intake_login(request):
     if request.method == "POST":
