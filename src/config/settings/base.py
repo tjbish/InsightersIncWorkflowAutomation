@@ -24,7 +24,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
-# TODO: Remove default once temp IDs can be generated
 INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default=None)
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default=None)
 
@@ -38,11 +37,13 @@ MONDAY_API_URL = env('MONDAY_API_URL', default='https://api.monday.com/v2')
 MONDAY_API_VERSION = env('MONDAY_API_VERSION', default='2024-04')
 MONDAY_BOARD_ID = env('MONDAY_BOARD_ID', default=None)
 MONDAY_GROUP_ID = env('MONDAY_GROUP_ID', default=None)
-MONDAY_BUSINESS_COLUMN_MAP = env.json('MONDAY_BUSINESS_COLUMN_MAP', default={})
-MONDAY_PERSONAL_COLUMN_MAP = env.json('MONDAY_PERSONAL_COLUMN_MAP', default={})
+LOCATIONIQ_API_KEY = env('LOCATIONIQ_API_KEY', default=None)
+LOCATIONIQ_API_URL = env('LOCATIONIQ_API_URL', default='https://us1.locationiq.com/v1/search')
+LOCATIONIQ_TIMEOUT = env.int('LOCATIONIQ_TIMEOUT', default=10)
+MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm15171h", "phone_number":"phone_mm15d41c", "location":"location_mm15jv3n", "date_signed":"date4"}
+MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm15171h", "phone_number":"phone_mm15d41c", "location":"location_mm15jv3n", "date_signed":"date4"}
 
 INSTALLED_APPS = [
-    # Sprint 2; make sure to check if we need or don't need admin rights
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
