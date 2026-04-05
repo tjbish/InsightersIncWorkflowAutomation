@@ -28,6 +28,7 @@ INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default=None)
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default=None)
 
 # Third Party API Settings
+# Delete Sharefile API keys
 SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
 SHAREFILE_API = env('SHAREFILE_API', default=None)
 SHAREFILE_URI = env('SHAREFILE_URI', default=None)
