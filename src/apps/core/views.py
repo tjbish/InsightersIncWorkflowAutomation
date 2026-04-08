@@ -2,7 +2,6 @@ from functools import wraps
 from datetime import timedelta
 import secrets
 import json
-import requests
 
 from django.conf import settings
 from django.shortcuts import render, redirect
@@ -103,53 +102,6 @@ def _build_personal_monday_item_name(client_name, spouse_name=None):
         return f"{base_name} & {spouse_part}"
     return base_name
 
-
-def _compose_full_address(address, city, state):
-    return ", ".join(part for part in [address, city, state] if part)
-
-
-@sensitive_variables("api_key", "params")
-def _geocode_location(address):
-    api_key = getattr(settings, "LOCATIONIQ_API_KEY", None)
-    if not api_key or not address:
-        return "", ""
-
-    try:
-        response = requests.get(
-            getattr(settings, "LOCATIONIQ_API_URL", "https://us1.locationiq.com/v1/search"),
-            params={
-                "key": api_key,
-                "q": address,
-                "format": "json",
-                "limit": 1,
-            },
-            timeout=getattr(settings, "LOCATIONIQ_TIMEOUT", 10),
-        )
-        response.raise_for_status()
-
-        payload = response.json()
-        if not payload:
-            return "", ""
-
-        best_match = payload[0]
-        lat = str(best_match.get("lat") or "").strip()
-        lng = str(best_match.get("lon") or "").strip()
-
-        if not lat or not lng:
-            return "", ""
-
-        return lat, lng
-    except requests.RequestException:
-        return "", ""
-    except (ValueError, TypeError, KeyError, IndexError):
-        return "", ""
-
-
-def _build_monday_item_location(address, city, state):
-    formatted_address = _compose_full_address(address, city, state)
-    lat, lng = _geocode_location(formatted_address)
-    return lat, lng, formatted_address
-
 def _to_monday_column_values(submission_payload, column_map):
     column_values = {}
     for local_key, monday_column_id in (column_map or {}).items():
@@ -161,15 +113,6 @@ def _to_monday_column_values(submission_payload, column_map):
                 submission_payload.get("client_name"),
                 submission_payload.get("spouse_name"),
             )
-        elif local_key == "location":
-            lat, lng, address = _build_monday_item_location(
-                submission_payload.get("address"),
-                submission_payload.get("city"),
-                submission_payload.get("state")
-            )
-            if lat and lng:
-                column_values[monday_column_id] = {"lat": lat, "lng": lng, "address": address}
-            continue
         else:
             value = submission_payload.get(local_key)
 

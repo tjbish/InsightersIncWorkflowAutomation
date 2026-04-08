@@ -58,7 +58,6 @@ SECRETS_MAPPING = {
     "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
     "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
     "MONDAY_API_TOKEN": "MONDAY_DEV_API", # replace with Prod Key Eventually
-    "LOCATIONIQ_API_KEY": "LOCATIONIQ_API_KEY",
 }
 
 for setting_name, secret_id in SECRETS_MAPPING.items():
