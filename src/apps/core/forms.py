@@ -14,7 +14,10 @@ ACCOUNT_TYPES = [('checking', 'Checking'), ('savings', 'Savings')]
 # Common Validators
 ssn_validator = RegexValidator(r'^(\d{3}-\d{2}-\d{4}|XXX-XX-XXXX)$', 'Enter SSN in XXX-XX-XXXX format.')
 zip_validator = RegexValidator(r'^\d{5}(?:-\d{4})?$', 'Enter a valid ZIP code.')
-phone_validator = RegexValidator(r'^\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$', 'Enter a valid phone number.')
+phone_validator = RegexValidator(
+    regex=r'^\d{3}-\d{3}-\d{4}$', 
+    message='Enter a valid phone number (e.g., 555-555-5555).'
+)
 fin_validator = RegexValidator(r'^(\d{2}-\d{7})$', 'Enter FIN in XX-XXXXXXX format.')
 
 # US States Selector
@@ -78,9 +81,9 @@ class BusinessIntakeForm(forms.Form):
     state = forms.ChoiceField(label="State*", choices=US_STATES)
     zip_code = forms.CharField(label="Zip Code*", max_length=10, validators=[zip_validator])
     
-    phone_number = forms.CharField(label="Phone Number*", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
-    cell_number = forms.CharField(label="Cell Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), required=False, validators=[phone_validator])
-    fax_number = forms.CharField(label="Fax Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), required=False, validators=[phone_validator])
+    phone_number = forms.CharField(label="Phone Number*", max_length=20, widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}), validators=[phone_validator])
+    cell_number = forms.CharField(label="Cell Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}), required=False, validators=[phone_validator])
+    fax_number = forms.CharField(label="Fax Number", max_length=20, widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}), required=False, validators=[phone_validator])
 
     # Section 3: Business Type & History
     BUSINESS_STRUCTURES = [
@@ -129,13 +132,13 @@ class BusinessIntakeForm(forms.Form):
     bank_account_type = forms.ChoiceField(label="Account Type (1)", choices=ACCOUNT_TYPES, required=False)
     bank_account_number = forms.CharField(label="Account Number (1)", max_length=30, required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'off'}, render_value=True))
     bank_contact_name = forms.CharField(label="Bank Contact Person (1)", max_length=100, required=False)
-    bank_contact_phone = forms.CharField(label="Bank Contact Phone (1)", max_length=20, required=False, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
+    bank_contact_phone = forms.CharField(label="Bank Contact Phone (1)", max_length=20, required=False, widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}), validators=[phone_validator])
     
     bank_name2 = forms.CharField(label="Bank Name (2)", max_length=100, required=False)
     bank_account_type2 = forms.ChoiceField(label="Account Type (2)", choices=ACCOUNT_TYPES, required=False)
     bank_account_number2 = forms.CharField(label="Account Number (2)", max_length=30, required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'off'}, render_value=True))
     bank_contact_name2 = forms.CharField(label="Bank Contact Person (2)", max_length=100, required=False)
-    bank_contact_phone2 = forms.CharField(label="Bank Contact Phone (2)", max_length=20, required=False, widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}), validators=[phone_validator])
+    bank_contact_phone2 = forms.CharField(label="Bank Contact Phone (2)", max_length=20, required=False, widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}), validators=[phone_validator])
 
     # Section 6: Payroll & Tax ID
     accounting_software = forms.CharField(label="Current Accounting Software (if any)", max_length=100, required=False)
@@ -205,8 +208,8 @@ class PersonalIntakeForm(forms.Form):
     state = forms.ChoiceField(label="State*", choices=US_STATES)
     zip_code = forms.CharField(label="Zip Code*", max_length=10, validators=[zip_validator])
     
-    phone_number = forms.CharField(label="Phone Number*", validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}))
-    cell_number = forms.CharField(label="Cell Phone", required=False, validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': '(XXX) XXX-XXXX'}))
+    phone_number = forms.CharField(label="Phone Number*", validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}))
+    cell_number = forms.CharField(label="Cell Phone", required=False, validators=[phone_validator], widget=forms.TextInput(attrs={'placeholder': 'XXX-XXX-XXXX'}))
     email = forms.EmailField(label="Email Address*")
 
     FILING_STATUS_CHOICES = [

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -9,9 +10,11 @@ from pypdf.generic import BooleanObject, NameObject, TextStringObject
 
 from .pdf_mapping import build_business_pdf_field_values, build_individual_pdf_field_values
 
+logger = logging.getLogger(__name__)
 
 BUSINESS_TEMPLATE = settings.BASE_DIR / "src" / "apps" / "core" / "pdf_templates" / "BusinessForm.pdf"
 INDIVIDUAL_TEMPLATE = settings.BASE_DIR / "src" / "apps" / "core" / "pdf_templates" / "IndividualForm.pdf"
+BUSINESS_ACCOUNT_TYPE_FIELDS = {"bank_accuont_type", "bank_account_type", "bank_account_type2"}
 
 
 def _prepare_acroform(writer: PdfWriter, reader: PdfReader) -> None:
@@ -47,6 +50,40 @@ def _ensure_default_appearance(writer: PdfWriter) -> None:
         acroform[NameObject("/DA")] = TextStringObject("/Helv 0 Tf 0 g")
 
 
+def _build_field_metadata(reader: PdfReader) -> dict[str, dict[str, str]]:
+    metadata: dict[str, dict[str, str]] = {}
+    for name, field in (reader.get_fields() or {}).items():
+        field_type = str(field.get("/FT", ""))
+        metadata[name] = {"type": field_type or "unknown"}
+    return metadata
+
+
+def _set_field_default_appearance(writer: PdfWriter, field_names: set[str], appearance: str) -> None:
+    for page in writer.pages:
+        for annotation_ref in page.get("/Annots", []):
+            annotation = annotation_ref.get_object()
+            if annotation.get("/Subtype") != "/Widget":
+                continue
+
+            field_name = annotation.get("/T")
+            if field_name in field_names:
+                annotation[NameObject("/DA")] = TextStringObject(appearance)
+
+
+def _log_field_resolution(field_values: dict[str, str], field_metadata: dict[str, dict[str, str]]) -> None:
+    for field_name in BUSINESS_ACCOUNT_TYPE_FIELDS:
+        if field_name not in field_values and field_name not in field_metadata:
+            continue
+        logger.info(
+            "Business PDF field resolved",
+            extra={
+                "pdf_field_name": field_name,
+                "pdf_field_type": field_metadata.get(field_name, {}).get("type", "missing"),
+                "pdf_field_value": field_values.get(field_name, ""),
+            },
+        )
+
+
 def fill_individual_pdf(
     cleaned_data: dict[str, Any],
     *,
@@ -76,12 +113,15 @@ def _fill_pdf(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     reader = PdfReader(str(template_path))
+    field_metadata = _build_field_metadata(reader)
     writer = PdfWriter()
 
     for page in reader.pages:
         writer.add_page(page)
 
     _prepare_acroform(writer, reader)
+    _set_field_default_appearance(writer, BUSINESS_ACCOUNT_TYPE_FIELDS, "/F2 7 Tf 0 0 0 rg")
+    _log_field_resolution(field_values, field_metadata)
 
     for page in writer.pages:
         writer.update_page_form_field_values(

@@ -113,7 +113,8 @@ BUSINESS_DIRECT_TEXT_FIELDS = {
     "sales_current": "sales_current",
     "fiscal_year_end": "fiscal_year_end",
     "bank_name": "bank_name",
-    "bank_account_type": "bank_account_type",
+    # The PDF template has a typo in the first account type field name.
+    "bank_account_type": "bank_accuont_type",
     "bank_account_number": "bank_account_number",
     "bank_contact_name": "bank_contact",
     "bank_name2": "bank_name2",
@@ -128,6 +129,12 @@ BUSINESS_DIRECT_TEXT_FIELDS = {
     "sales_tax_state": "sales_tax_state",
     "sales_tax_county": "sales_tax_country",
     "sales_tax_city": "sales_tax_city",
+}
+
+
+BUSINESS_FIELD_ALIASES = {
+    "bank_accuont_type": ("bank_accuont_type", "bank_account_type"),
+    "bank_account_type2": ("bank_account_type2",),
 }
 
 
@@ -154,6 +161,15 @@ def _to_text(value: Any) -> str:
     if isinstance(value, Decimal):
         return format(value, "f")
     return str(value)
+
+
+def _to_account_type_text(value: Any) -> str:
+    raw = _to_text(value).strip().lower()
+    if raw == "checking":
+        return "Checking"
+    if raw == "savings":
+        return "Savings"
+    return _to_text(value).strip()
 
 
 def _split_phone_number(value: Any) -> tuple[str, str]:
@@ -244,6 +260,14 @@ def build_business_pdf_field_values(cleaned_data: dict[str, Any]) -> dict[str, s
 
     for django_field, pdf_field in BUSINESS_DIRECT_TEXT_FIELDS.items():
         field_values[pdf_field] = _to_text(cleaned_data.get(django_field))
+
+    for django_field, pdf_fields in {
+        "bank_account_type": BUSINESS_FIELD_ALIASES["bank_accuont_type"],
+        "bank_account_type2": BUSINESS_FIELD_ALIASES["bank_account_type2"],
+    }.items():
+        display_value = _to_account_type_text(cleaned_data.get(django_field))
+        for pdf_field in pdf_fields:
+            field_values[pdf_field] = display_value
 
     phone_fields = {
         "phone_number": ("phone_number1", "phone_number2"),
