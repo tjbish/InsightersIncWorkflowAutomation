@@ -472,7 +472,7 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
@@ -594,7 +594,7 @@ def personal_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
