@@ -110,7 +110,7 @@ def _extract_phone_number(phone):
 
     if "-" in raw:
         areaCode, firstVals, lastVals = [part.strip() for part in raw.split("-", 2)]
-        fullNum = "".join(areaCode, firstVals, lastVals)
+        fullNum = areaCode + firstVals + lastVals
         return fullNum
     else:
         return raw
