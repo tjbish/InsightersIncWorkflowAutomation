@@ -103,53 +103,6 @@ def _build_personal_monday_item_name(client_name, spouse_name=None):
         return f"{base_name} & {spouse_part}"
     return base_name
 
-
-def _compose_full_address(address, city, state):
-    return ", ".join(part for part in [address, city, state] if part)
-
-
-@sensitive_variables("api_key", "params")
-def _geocode_location(address):
-    api_key = getattr(settings, "LOCATIONIQ_API_KEY", None)
-    if not api_key or not address:
-        return "", ""
-
-    try:
-        response = requests.get(
-            getattr(settings, "LOCATIONIQ_API_URL", "https://us1.locationiq.com/v1/search"),
-            params={
-                "key": api_key,
-                "q": address,
-                "format": "json",
-                "limit": 1,
-            },
-            timeout=getattr(settings, "LOCATIONIQ_TIMEOUT", 10),
-        )
-        response.raise_for_status()
-
-        payload = response.json()
-        if not payload:
-            return "", ""
-
-        best_match = payload[0]
-        lat = str(best_match.get("lat") or "").strip()
-        lng = str(best_match.get("lon") or "").strip()
-
-        if not lat or not lng:
-            return "", ""
-
-        return lat, lng
-    except requests.RequestException:
-        return "", ""
-    except (ValueError, TypeError, KeyError, IndexError):
-        return "", ""
-
-
-def _build_monday_item_location(address, city, state):
-    formatted_address = _compose_full_address(address, city, state)
-    lat, lng = _geocode_location(formatted_address)
-    return lat, lng, formatted_address
-
 def _to_monday_column_values(submission_payload, column_map):
     column_values = {}
     for local_key, monday_column_id in (column_map or {}).items():
@@ -161,15 +114,6 @@ def _to_monday_column_values(submission_payload, column_map):
                 submission_payload.get("client_name"),
                 submission_payload.get("spouse_name"),
             )
-        elif local_key == "location":
-            lat, lng, address = _build_monday_item_location(
-                submission_payload.get("address"),
-                submission_payload.get("city"),
-                submission_payload.get("state")
-            )
-            if lat and lng:
-                column_values[monday_column_id] = {"lat": lat, "lng": lng, "address": address}
-            continue
         else:
             value = submission_payload.get(local_key)
 
@@ -186,18 +130,32 @@ def _to_monday_column_values(submission_payload, column_map):
 
     return column_values
 
+
+def _build_business_monday_column_values(submission_payload):
+    business_column_map = {
+        # TODO: REMOVE DEV_ FOR HANDOFF
+        **getattr(settings, "DEV_MONDAY_BUSINESS_COLUMN_MAP", {}),
+        "date_signed": "date4",
+    }
+    return _to_monday_column_values(submission_payload, business_column_map)
+
 @sensitive_variables('token', 'headers', 'variables', 'mutation', 'column_values')
-def _monday_create_item(item_name, column_values):
-    token = getattr(settings, "MONDAY_API_TOKEN", None) or getattr(settings, "MONDAY_API", None)
-    board_id = getattr(settings, "MONDAY_BOARD_ID", None)
-    group_id = getattr(settings, "MONDAY_GROUP_ID", None)
+def _monday_create_item(item_name, column_values, type):
+    # TODO: CHANGE TO PROD (REMOVE DEV_) BEFORE HANDOFF
+    token = getattr(settings, "DEV_MONDAY_API_TOKEN", None)
+    board_id = getattr(settings, "DEV_MONDAY_BOARD_ID", None)
+    business_group_id = getattr(settings, "DEV_MONDAY_BUSINESS_GROUP_ID", None)
+    personal_group_id = getattr(settings, "DEV_MONDAY_PERSONAL_GROUP_ID", None)
     api_url = getattr(settings, "MONDAY_API_URL", "https://api.monday.com/v2")
     api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
 
+    if type == "business":
+        group_id = business_group_id
+    else:
+        group_id = personal_group_id
+
     if not token:
-        raise RuntimeError("MONDAY_API_TOKEN (or MONDAY_API) is not configured.")
-    if not board_id:
-        raise RuntimeError("MONDAY_BOARD_ID is not configured.")
+        raise RuntimeError("MONDAY_API_TOKEN is not configured.")
 
     headers = {
         "Authorization": token,
@@ -205,44 +163,25 @@ def _monday_create_item(item_name, column_values):
         "API-Version": api_version,
     }
 
-    if group_id:
-        mutation = """
-        mutation ($board_id: ID!, $group_id: String!, $item_name: String!, $column_values: JSON!) {
-          create_item(
-            board_id: $board_id,
-            group_id: $group_id,
-            item_name: $item_name,
-            column_values: $column_values
-          ) {
-            id
-            name
-          }
+    mutation = """
+    mutation ($board_id: ID!, $group_id: String!, $item_name: String!, $column_values: JSON!) {
+        create_item(
+        board_id: $board_id,
+        group_id: $group_id,
+        item_name: $item_name,
+        column_values: $column_values
+        ) {
+        id
+        name
         }
-        """
-        variables = {
-            "board_id": str(board_id),
-            "group_id": group_id,
-            "item_name": item_name,
-            "column_values": json.dumps(column_values),
-        }
-    else:
-        mutation = """
-        mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
-          create_item(
-            board_id: $board_id,
-            item_name: $item_name,
-            column_values: $column_values
-          ) {
-            id
-            name
-          }
-        }
-        """
-        variables = {
-            "board_id": str(board_id),
-            "item_name": item_name,
-            "column_values": json.dumps(column_values),
-        }
+    }
+    """
+    variables = {
+        "board_id": str(board_id),
+        "group_id": str(group_id),
+        "item_name": item_name,
+        "column_values": json.dumps(column_values),
+    }
 
     response = requests.post(
         api_url,
@@ -317,13 +256,11 @@ def submission_processing_view(request):
         try:
             if business_submission:
                 business_item_name = business_submission.get("business_name") or "Business Intake Submission"
-                business_columns = _to_monday_column_values(
-                    business_submission,
-                    getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
-                )
+                business_columns = _build_business_monday_column_values(business_submission)
                 _monday_create_item(
                     item_name=business_item_name,
                     column_values=business_columns,
+                    type="business"
                 )
                 request.session.pop("monday_pending_business_submission", None)
 
@@ -334,11 +271,13 @@ def submission_processing_view(request):
                 ) or "Personal Intake Submission"
                 personal_columns = _to_monday_column_values(
                     personal_submission,
-                    getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
+                    # TODO: REMOVE DEV_ FOR HANDOFF
+                    getattr(settings, "DEV_MONDAY_PERSONAL_COLUMN_MAP", {}),
                 )
                 _monday_create_item(
                     item_name=personal_item_name,
                     column_values=personal_columns,
+                    type="personal"
                 )
                 request.session.pop("monday_pending_personal_submission", None)
 
@@ -528,10 +467,11 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
+            serialized["date_signed"] = timezone.localdate().strftime("%Y-%m-%d")
             request.session["monday_pending_business_submission"] = serialized
             request.session["submitted_form_type"] = "business"
             # Lock access away from the form endpoint until monday sync finalizes.
@@ -650,7 +590,7 @@ def personal_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)

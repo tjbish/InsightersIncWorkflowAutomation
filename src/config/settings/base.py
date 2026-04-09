@@ -33,16 +33,25 @@ SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
 SHAREFILE_API = env('SHAREFILE_API', default=None)
 SHAREFILE_URI = env('SHAREFILE_URI', default=None)
 
-MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None) # Change back to production API key after debugging is finished
+# Production keys & ID mappings
+MONDAY_API_TOKEN = env('MONDAY_API', default=None)
 MONDAY_API_URL = env('MONDAY_API_URL', default='https://api.monday.com/v2')
 MONDAY_API_VERSION = env('MONDAY_API_VERSION', default='2024-04')
 MONDAY_BOARD_ID = env('MONDAY_BOARD_ID', default=None)
-MONDAY_GROUP_ID = env('MONDAY_GROUP_ID', default=None)
-LOCATIONIQ_API_KEY = env('LOCATIONIQ_API_KEY', default=None)
-LOCATIONIQ_API_URL = env('LOCATIONIQ_API_URL', default='https://us1.locationiq.com/v1/search')
-LOCATIONIQ_TIMEOUT = env.int('LOCATIONIQ_TIMEOUT', default=10)
-MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm15171h", "phone_number":"phone_mm15d41c", "location":"location_mm15jv3n", "date_signed":"date4"}
-MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm15171h", "phone_number":"phone_mm15d41c", "location":"location_mm15jv3n", "date_signed":"date4"}
+MONDAY_BUSINESS_GROUP_ID = "group_mm262dz"
+MONDAY_PERSONAL_GROUP_ID = "topics"
+MONDAY_FILE_ID = "file_mm1nffry"
+MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm26e82x", "phone_number":"phone_mm26ghe3"}
+MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm26e82x", "phone_number":"phone_mm26ghe3", "date_signed":"date4"}
+
+# Dev keys & ID mappings
+DEV_MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None)
+DEV_MONDAY_BOARD_ID = env('MONDAY_DEV_BOARD_ID', default=None)
+DEV_MONDAY_BUSINESS_GROUP_ID = "topics"
+DEV_MONDAY_PERSONAL_GROUP_ID = "group_title"
+DEV_MONDAY_FILE_ID = "file_mm26rrdp"
+DEV_MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm27w5wx", "phone_number":"phone_mm27rk8x"}
+DEV_MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm27w5wx", "phone_number":"phone_mm27rk8x", "date_signed":"date4"}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
