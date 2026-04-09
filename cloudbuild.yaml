@@ -58,6 +58,6 @@ substitutions:
   _REPO_NAME: 'insighters-repo'
   _SERVICE_NAME: 'insighters-workflow-automation'
   _DB_CONNECTION_NAME: 'insighters-app:us-central1:insighters-prod-db'
-  _MONDAY_BOARD_ID: '18402769675'
+  _MONDAY_BOARD_ID: '18407648415' # Dev Board ID (Update to Prod Board for Final Handoff)
   _ENTRA_CLIENT_ID: 'ac79e532-55c6-4e79-8947-8836c96ec2df' #Prod Client ID
   _ENTRA_TENANT_ID: 'df7f838b-f08f-4c45-ae8b-6227b5abfb03' #Prod Tenant ID
