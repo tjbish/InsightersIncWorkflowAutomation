@@ -57,7 +57,7 @@ SECRETS_MAPPING = {
     "SECRET_KEY": "DJANGO_SECRET_KEY",
     "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
     "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
-    "MONDAY_API_TOKEN": "MONDAY_DEV_API", # replace with Prod Key Eventually
+    "DEV_MONDAY_API_TOKEN": "MONDAY_DEV_API", # replace with Prod Key Eventually
 }
 
 for setting_name, secret_id in SECRETS_MAPPING.items():
@@ -83,13 +83,6 @@ if "DATABASE_URL_VAL" in globals():
 if "MICROSOFT_CLIENT_SECRET" in globals():
     # Update the AllAuth provider config with the fetched secret
     SOCIALACCOUNT_PROVIDERS['microsoft']['APP']['secret'] = globals()["MICROSOFT_CLIENT_SECRET"]
-
-# Parse JSON configurations fetched from Secret Manager
-if "MONDAY_BUSINESS_MAP_JSON" in globals():
-    MONDAY_BUSINESS_COLUMN_MAP = json.loads(globals()["MONDAY_BUSINESS_MAP_JSON"])
-
-if "MONDAY_PERSONAL_MAP_JSON" in globals():
-    MONDAY_PERSONAL_COLUMN_MAP = json.loads(globals()["MONDAY_PERSONAL_MAP_JSON"])
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
