@@ -103,6 +103,18 @@ def _build_personal_monday_item_name(client_name, spouse_name=None):
         return f"{base_name} & {spouse_part}"
     return base_name
 
+def _extract_phone_number(phone):
+    raw = (phone or "").strip()
+    if not raw:
+        return "", ""
+
+    if "-" in raw:
+        areaCode, firstVals, lastVals = [part.strip() for part in raw.split("-", 2)]
+        fullNum = "".join(areaCode, firstVals, lastVals)
+        return fullNum
+    else:
+        return raw
+
 def _to_monday_column_values(submission_payload, column_map):
     column_values = {}
     for local_key, monday_column_id in (column_map or {}).items():
@@ -124,7 +136,7 @@ def _to_monday_column_values(submission_payload, column_map):
         if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
             column_values[monday_column_id] = {"email": value, "text": value}
         elif local_key.lower() == "phone_number" or str(monday_column_id).lower().startswith("phone"):
-            column_values[monday_column_id] = {"phone": value, "countryShortName": "US"} # Hardcoded to only US clients
+            column_values[monday_column_id] = {"phone": _extract_phone_number(value), "countryShortName": "US"} # Hardcoded to only US clients
         else:
             column_values[monday_column_id] = value
 
