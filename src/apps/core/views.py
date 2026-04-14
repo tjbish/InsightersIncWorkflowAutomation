@@ -1,5 +1,6 @@
 from functools import wraps
 from datetime import timedelta
+from pathlib import Path
 import secrets
 import json
 import requests
@@ -211,6 +212,86 @@ def _monday_create_item(item_name, column_values, type):
     return payload["data"]["create_item"]
 
 
+@sensitive_variables('token', 'headers', 'mutation', 'files')
+def _monday_upload_file_to_column(item_id, file_path, type):
+    # TODO: CHANGE TO PROD (REMOVE DEV_) BEFORE HANDOFF
+    token = getattr(settings, "DEV_MONDAY_API_TOKEN", None)
+    column_id = getattr(settings, "DEV_MONDAY_FILE_ID", None)
+    api_url = getattr(settings, "MONDAY_FILE_API_URL", "https://api.monday.com/v2/file")
+    api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
+    file_path = Path(file_path)
+
+    if not token:
+        raise RuntimeError("MONDAY_API_TOKEN is not configured.")
+
+    if not column_id:
+        raise RuntimeError("MONDAY_FILE_ID is not configured.")
+
+    if not file_path.exists():
+        raise RuntimeError(f"Generated PDF does not exist: {file_path}")
+
+    headers = {
+        "Authorization": token,
+        "API-Version": api_version,
+    }
+
+    mutation = f"""
+    mutation ($file: File!) {{
+        add_file_to_column(
+            item_id: {json.dumps(str(item_id))},
+            column_id: {json.dumps(column_id)},
+            file: $file
+        ) {{
+            id
+        }}
+    }}
+    """
+
+    with file_path.open("rb") as upload_file:
+        files = {
+            "query": (None, mutation),
+            "variables[file]": (file_path.name, upload_file, "application/pdf"),
+        }
+        response = requests.post(
+            api_url,
+            headers=headers,
+            files=files,
+            timeout=60,
+        )
+
+    if not response.ok:
+        raise RuntimeError(f"monday file upload HTTP {response.status_code}: {response.text}")
+
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(f"monday file upload GraphQL errors: {payload['errors']}")
+
+    return payload["data"]["add_file_to_column"]
+
+
+def _sync_monday_submission_with_file(request, session_key, submission_payload, item_name, column_values, type):
+    monday_item_id = submission_payload.get("monday_item_id")
+
+    if not monday_item_id:
+        monday_item = _monday_create_item(
+            item_name=item_name,
+            column_values=column_values,
+            type=type,
+        )
+        monday_item_id = monday_item["id"]
+        submission_payload["monday_item_id"] = monday_item_id
+        request.session[session_key] = submission_payload
+        request.session.modified = True
+
+    pdf_path = submission_payload.get("generated_pdf_path")
+    if pdf_path:
+        _monday_upload_file_to_column(
+            item_id=monday_item_id,
+            file_path=pdf_path,
+            type=type,
+        )
+
+
 def authenticate_intake_login(login_id: str, password: str, next_path: str = None):
     # Env bypass check
     if (
@@ -269,7 +350,10 @@ def submission_processing_view(request):
             if business_submission:
                 business_item_name = business_submission.get("business_name") or "Business Intake Submission"
                 business_columns = _build_business_monday_column_values(business_submission)
-                _monday_create_item(
+                _sync_monday_submission_with_file(
+                    request,
+                    "monday_pending_business_submission",
+                    business_submission,
                     item_name=business_item_name,
                     column_values=business_columns,
                     type="business"
@@ -286,7 +370,10 @@ def submission_processing_view(request):
                     # TODO: REMOVE DEV_ FOR HANDOFF
                     getattr(settings, "DEV_MONDAY_PERSONAL_COLUMN_MAP", {}),
                 )
-                _monday_create_item(
+                _sync_monday_submission_with_file(
+                    request,
+                    "monday_pending_personal_submission",
+                    personal_submission,
                     item_name=personal_item_name,
                     column_values=personal_columns,
                     type="personal"
@@ -464,10 +551,9 @@ def business_view(request):
                     / "business"
                     / f"business_submission_{submission.id}_{timestamp}.pdf"
                 )
-                fill_business_pdf(data, output_path=output_path)
+                pdf_path = fill_business_pdf(data, output_path=output_path)
             except Exception as exc:
                 print(f"Failed to generate business PDF for submission {submission.id}: {exc}")
-            pdf_path = output_path
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -484,6 +570,8 @@ def business_view(request):
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
             serialized["date_signed"] = timezone.localdate().strftime("%Y-%m-%d")
+            if pdf_path:
+                serialized["generated_pdf_path"] = str(pdf_path)
             request.session["monday_pending_business_submission"] = serialized
             request.session["submitted_form_type"] = "business"
             # Lock access away from the form endpoint until monday sync finalizes.
@@ -606,6 +694,8 @@ def personal_view(request):
 
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
+            if pdf_path:
+                serialized["generated_pdf_path"] = str(pdf_path)
             request.session["monday_pending_personal_submission"] = serialized
             request.session["submitted_form_type"] = "individual"
             # Lock access away from the form endpoint until monday sync finalizes.

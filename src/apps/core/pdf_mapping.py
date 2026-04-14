@@ -73,7 +73,7 @@ FILING_STATUS_FIELDS = {
 
 
 INCOME_SOURCE_FIELDS = {
-    "income": "income_sources1",
+    "income": "income_sources",
     "pension": "income_sources2",
     "gambling": "income_sources3",
     "other": "income_sources4",
@@ -188,7 +188,7 @@ def _empty_choice_fields() -> dict[str, str]:
         "filing_status3": "",
         "filing_status4": "",
         "filing_status5": "",
-        "income_sources1": "",
+        "income_sources": "",
         "income_sources2": "",
         "income_sources3": "",
         "income_sources4": "",

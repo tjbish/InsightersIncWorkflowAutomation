@@ -36,6 +36,7 @@ SHAREFILE_URI = env('SHAREFILE_URI', default=None)
 # Production keys & ID mappings
 MONDAY_API_TOKEN = env('MONDAY_API', default=None)
 MONDAY_API_URL = env('MONDAY_API_URL', default='https://api.monday.com/v2')
+MONDAY_FILE_API_URL = env('MONDAY_FILE_API_URL', default='https://api.monday.com/v2/file')
 MONDAY_API_VERSION = env('MONDAY_API_VERSION', default='2024-04')
 MONDAY_BOARD_ID = env('MONDAY_BOARD_ID', default=None)
 MONDAY_BUSINESS_GROUP_ID = "group_mm262dz"
