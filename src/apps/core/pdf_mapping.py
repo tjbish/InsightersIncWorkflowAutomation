@@ -208,6 +208,10 @@ def build_individual_pdf_field_values(cleaned_data: dict[str, Any]) -> dict[str,
     for django_field, pdf_field in DIRECT_TEXT_FIELDS.items():
         field_values[pdf_field] = _to_text(cleaned_data.get(django_field))
 
+    client_name = _to_text(cleaned_data.get("client_name"))
+    if client_name:
+        field_values["client_name"] = f"  {client_name}"
+
     for field_name in DEPENDENT_FIELDS:
         field_values[field_name] = _to_text(cleaned_data.get(field_name))
 
