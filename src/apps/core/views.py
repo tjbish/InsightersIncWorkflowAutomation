@@ -1,6 +1,7 @@
 from functools import wraps
 from datetime import timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import secrets
 import json
 import requests
@@ -412,7 +413,7 @@ def admin_dashboard(request):
     if request.method == "POST":
         form = TemporaryIntakeCredentialCreateForm(request.POST)
         if form.is_valid():
-            expires_at = timezone.now() + timedelta(hours=24)
+            expires_at = timezone.now() + timedelta(days=5)
             generated_password = secrets.token_urlsafe(12)
             
             created_by_login_id = request.user.email if request.user.email else request.user.username
@@ -450,7 +451,7 @@ def admin_dashboard(request):
                     "password": generated_password,
                     "form_type": credential.get_form_type_display(),
                     # Convert date to string so it can be stored in the session (JSON)
-                    "expires_at": credential.expires_at.strftime("%m/%d/%Y %I:%M %p"),
+                    "expires_at": credential.expires_at.astimezone(ZoneInfo("America/Chicago")).strftime("%m/%d/%Y %I:%M %p"),
                     "client_email": credential.client_email,
                     "email_sent": email_sent,
                     "email_error": email_error,

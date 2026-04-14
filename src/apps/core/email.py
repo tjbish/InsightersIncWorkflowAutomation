@@ -1,6 +1,7 @@
 import os
 import requests
 import base64
+from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.contrib.auth.models import User
@@ -35,7 +36,7 @@ def send_intake_email(request, credential_id, plain_password):
 
     context = {
         'name': 'Valued Client',
-        'expiration_time': credential.expires_at.strftime("%m/%d/%Y at %I:%M %p"),
+        'expiration_time': credential.expires_at.astimezone(ZoneInfo("America/Chicago")).strftime("%m/%d/%Y at %I:%M %p"),
         'login_id': credential.login_id,
         'password': plain_password,
         'form_link': form_link,
@@ -104,7 +105,7 @@ def send_submission_confirmation_email(submission, credential, pdf_path=None):
     context = {
         'client_name': client_name,
         'form_type': form_type,
-        'submission_date': submission.created_at.strftime("%m/%d/%Y at %I:%M %p"),
+        'submission_date': submission.created_at.astimezone(ZoneInfo("America/Chicago")).strftime("%m/%d/%Y at %I:%M %p"),
     }
     html_content = render_to_string('email_confirmation.html', context)
 
