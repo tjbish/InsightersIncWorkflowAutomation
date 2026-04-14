@@ -58,18 +58,6 @@ def _build_field_metadata(reader: PdfReader) -> dict[str, dict[str, str]]:
     return metadata
 
 
-def _set_field_default_appearance(writer: PdfWriter, field_names: set[str], appearance: str) -> None:
-    for page in writer.pages:
-        for annotation_ref in page.get("/Annots", []):
-            annotation = annotation_ref.get_object()
-            if annotation.get("/Subtype") != "/Widget":
-                continue
-
-            field_name = annotation.get("/T")
-            if field_name in field_names:
-                annotation[NameObject("/DA")] = TextStringObject(appearance)
-
-
 def _log_field_resolution(field_values: dict[str, str], field_metadata: dict[str, dict[str, str]]) -> None:
     for field_name in BUSINESS_ACCOUNT_TYPE_FIELDS:
         if field_name not in field_values and field_name not in field_metadata:
@@ -120,7 +108,6 @@ def _fill_pdf(
         writer.add_page(page)
 
     _prepare_acroform(writer, reader)
-    _set_field_default_appearance(writer, BUSINESS_ACCOUNT_TYPE_FIELDS, "/F2 7 Tf 0 0 0 rg")
     _log_field_resolution(field_values, field_metadata)
 
     for page in writer.pages:
