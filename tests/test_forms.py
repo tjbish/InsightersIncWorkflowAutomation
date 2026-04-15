@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from .conftest import build_url, login_for_intake_path
+from .conftest import login_for_intake_path, post_with_csrf
 
 
 def test_individual_form_accepts_valid_fake_submission(session, base_url, valid_individual_data):
     login_response = login_for_intake_path(session, base_url, "/individual/")
     assert login_response.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/individual/"),
-        data=valid_individual_data,
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/individual/",
+        valid_individual_data,
         allow_redirects=True,
         timeout=60,
     )
@@ -22,9 +24,11 @@ def test_business_form_accepts_valid_fake_submission(session, base_url, valid_bu
     login_response = login_for_intake_path(session, base_url, "/business/")
     assert login_response.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/business/"),
-        data=valid_business_data,
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/business/",
+        valid_business_data,
         allow_redirects=True,
         timeout=60,
     )
@@ -37,9 +41,11 @@ def test_empty_individual_form_is_rejected(session, base_url):
     login_response = login_for_intake_path(session, base_url, "/individual/")
     assert login_response.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/individual/"),
-        data={},
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/individual/",
+        {},
         timeout=30,
     )
     assert response.status_code == 200
@@ -50,9 +56,11 @@ def test_empty_business_form_is_rejected(session, base_url):
     login_response = login_for_intake_path(session, base_url, "/business/")
     assert login_response.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/business/"),
-        data={},
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/business/",
+        {},
         timeout=30,
     )
     assert response.status_code == 200

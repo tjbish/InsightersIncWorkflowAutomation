@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .conftest import build_url, login_for_intake_path
+from .conftest import build_url, login_for_intake_path, post_with_csrf
 
 
 def test_dashboard_redirects_when_not_authenticated(session, base_url):
@@ -19,9 +19,11 @@ def test_intake_login_rejects_bad_credentials(session, base_url):
     preflight = session.get(build_url(base_url, "/individual/"), allow_redirects=False, timeout=30)
     assert preflight.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/intake-login/"),
-        data={"login_id": "bad-user", "password": "bad-password"},
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/intake-login/",
+        {"login_id": "bad-user", "password": "bad-password"},
         timeout=30,
     )
     assert response.status_code == 200

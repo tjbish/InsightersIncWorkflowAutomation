@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import psycopg2
 import pytest
 
-from .conftest import build_url, login_for_intake_path
+from .conftest import login_for_intake_path, post_with_csrf
 
 
 def _database_connection():
@@ -28,9 +28,11 @@ def test_business_submission_persists_and_does_not_echo_sensitive_values(session
     login_response = login_for_intake_path(session, base_url, "/business/")
     assert login_response.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/business/"),
-        data=valid_business_data,
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/business/",
+        valid_business_data,
         allow_redirects=True,
         timeout=60,
     )
@@ -65,9 +67,11 @@ def test_individual_submission_persists_and_does_not_echo_sensitive_values(sessi
     login_response = login_for_intake_path(session, base_url, "/individual/")
     assert login_response.status_code in {302, 303}
 
-    response = session.post(
-        build_url(base_url, "/individual/"),
-        data=valid_individual_data,
+    response = post_with_csrf(
+        session,
+        base_url,
+        "/individual/",
+        valid_individual_data,
         allow_redirects=True,
         timeout=60,
     )

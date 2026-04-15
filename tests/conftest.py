@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -36,6 +37,39 @@ def build_url(base_url: str, path: str) -> str:
     return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
 
 
+def _extract_csrf_token(response_text: str) -> str:
+    match = re.search(r'name="csrfmiddlewaretoken"\s+value="([^"]+)"', response_text)
+    assert match, "Could not find csrfmiddlewaretoken in response HTML."
+    return match.group(1)
+
+
+def get_form_page(session: requests.Session, base_url: str, path: str) -> requests.Response:
+    response = session.get(build_url(base_url, path), timeout=30)
+    assert response.status_code == 200, f"Expected 200 for GET {path}, got {response.status_code}"
+    return response
+
+
+def post_with_csrf(
+    session: requests.Session,
+    base_url: str,
+    path: str,
+    data: dict[str, Any],
+    *,
+    allow_redirects: bool = True,
+    timeout: int = 30,
+) -> requests.Response:
+    form_page = get_form_page(session, base_url, path)
+    csrf_token = _extract_csrf_token(form_page.text)
+    payload = {"csrfmiddlewaretoken": csrf_token, **data}
+    return session.post(
+        build_url(base_url, path),
+        data=payload,
+        headers={"Referer": build_url(base_url, path)},
+        allow_redirects=allow_redirects,
+        timeout=timeout,
+    )
+
+
 def login_for_intake_path(session: requests.Session, base_url: str, protected_path: str) -> requests.Response:
     login_id = os.environ.get("INTAKE_LOGIN_ID")
     password = os.environ.get("INTAKE_LOGIN_PASSWORD")
@@ -45,9 +79,11 @@ def login_for_intake_path(session: requests.Session, base_url: str, protected_pa
     preflight = session.get(build_url(base_url, protected_path), allow_redirects=False, timeout=30)
     assert preflight.status_code in {302, 303}, f"Expected redirect when requesting {protected_path}, got {preflight.status_code}"
 
-    return session.post(
-        build_url(base_url, "/intake-login/"),
-        data={"login_id": login_id, "password": password},
+    return post_with_csrf(
+        session,
+        base_url,
+        "/intake-login/",
+        {"login_id": login_id, "password": password},
         allow_redirects=False,
         timeout=30,
     )
