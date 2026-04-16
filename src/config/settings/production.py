@@ -88,6 +88,12 @@ if "MICROSOFT_CLIENT_SECRET" in globals():
     # Update the AllAuth provider config with the fetched secret
     SOCIALACCOUNT_PROVIDERS['microsoft']['APP']['secret'] = globals()["MICROSOFT_CLIENT_SECRET"]
 
+if "MICROSOFT_CLIENT_ID" in globals():
+    SOCIALACCOUNT_PROVIDERS['microsoft']['APP']['client_id'] = globals()["MICROSOFT_CLIENT_ID"]
+    
+if "MICROSOFT_TENANT_ID" in globals():
+    SOCIALACCOUNT_PROVIDERS['microsoft']['TENANT'] = globals()["MICROSOFT_TENANT_ID"]
+
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
