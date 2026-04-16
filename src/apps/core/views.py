@@ -147,19 +147,17 @@ def _to_monday_column_values(submission_payload, column_map):
 
 def _build_business_monday_column_values(submission_payload):
     business_column_map = {
-        # TODO: REMOVE DEV_ FOR HANDOFF
-        **getattr(settings, "DEV_MONDAY_BUSINESS_COLUMN_MAP", {}),
+        **getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
         "date_signed": "date4",
     }
     return _to_monday_column_values(submission_payload, business_column_map)
 
 @sensitive_variables('token', 'headers', 'variables', 'mutation', 'column_values')
 def _monday_create_item(item_name, column_values, type):
-    # TODO: CHANGE TO PROD (REMOVE DEV_) BEFORE HANDOFF
-    token = getattr(settings, "DEV_MONDAY_API_TOKEN", None)
-    board_id = getattr(settings, "DEV_MONDAY_BOARD_ID", None)
-    business_group_id = getattr(settings, "DEV_MONDAY_BUSINESS_GROUP_ID", None)
-    personal_group_id = getattr(settings, "DEV_MONDAY_PERSONAL_GROUP_ID", None)
+    token = getattr(settings, "MONDAY_API_TOKEN", None)
+    board_id = getattr(settings, "MONDAY_BOARD_ID", None)
+    business_group_id = getattr(settings, "MONDAY_BUSINESS_GROUP_ID", None)
+    personal_group_id = getattr(settings, "MONDAY_PERSONAL_GROUP_ID", None)
     api_url = getattr(settings, "MONDAY_API_URL", "https://api.monday.com/v2")
     api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
 
@@ -215,9 +213,8 @@ def _monday_create_item(item_name, column_values, type):
 
 @sensitive_variables('token', 'headers', 'mutation', 'files')
 def _monday_upload_file_to_column(item_id, file_path, type):
-    # TODO: CHANGE TO PROD (REMOVE DEV_) BEFORE HANDOFF
-    token = getattr(settings, "DEV_MONDAY_API_TOKEN", None)
-    column_id = getattr(settings, "DEV_MONDAY_FILE_ID", None)
+    token = getattr(settings, "MONDAY_API_TOKEN", None)
+    column_id = getattr(settings, "MONDAY_FILE_ID", None)
     api_url = getattr(settings, "MONDAY_FILE_API_URL", "https://api.monday.com/v2/file")
     api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
     file_path = Path(file_path)
@@ -368,8 +365,7 @@ def submission_processing_view(request):
                 ) or "Personal Intake Submission"
                 personal_columns = _to_monday_column_values(
                     personal_submission,
-                    # TODO: REMOVE DEV_ FOR HANDOFF
-                    getattr(settings, "DEV_MONDAY_PERSONAL_COLUMN_MAP", {}),
+                    getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
                 )
                 _sync_monday_submission_with_file(
                     request,

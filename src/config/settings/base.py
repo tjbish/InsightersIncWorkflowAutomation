@@ -45,7 +45,7 @@ MONDAY_FILE_ID = "file_mm1nffry"
 MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm26e82x", "phone_number":"phone_mm26ghe3"}
 MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm26e82x", "phone_number":"phone_mm26ghe3", "date_signed":"date4"}
 
-# Dev keys & ID mappings (Remove for Prod)
+# Dev keys & ID mappings
 DEV_MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None)
 DEV_MONDAY_BOARD_ID = env('DEV_MONDAY_BOARD_ID', default=None)
 DEV_MONDAY_BUSINESS_GROUP_ID = "topics"
