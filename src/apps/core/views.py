@@ -1,5 +1,7 @@
 from functools import wraps
 from datetime import timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
 import secrets
 import json
 import requests
@@ -8,7 +10,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.views.decorators.debug import sensitive_variables
+from django.views.decorators.debug import sensitive_variables, sensitive_post_parameters
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
@@ -103,6 +105,17 @@ def _build_personal_monday_item_name(client_name, spouse_name=None):
         return f"{base_name} & {spouse_part}"
     return base_name
 
+def _extract_phone_number(phone):
+    raw = (phone or "").strip()
+    if not raw:
+        return "", ""
+
+    if "-" in raw:
+        areaCode, firstVals, lastVals = [part.strip() for part in raw.split("-", 2)]
+        fullNum = areaCode + firstVals + lastVals
+        return fullNum
+    else:
+        return raw
 
 def _to_monday_column_values(submission_payload, column_map):
     column_values = {}
@@ -110,38 +123,51 @@ def _to_monday_column_values(submission_payload, column_map):
         if not monday_column_id:
             continue
 
-        value = submission_payload.get(local_key)
-        if value in (None, ""):
-            continue
-
         if local_key == "client_name":
             value = _build_personal_monday_item_name(
                 submission_payload.get("client_name"),
                 submission_payload.get("spouse_name"),
             )
+        else:
+            value = submission_payload.get(local_key)
+
+        if value in (None, ""):
+            continue
 
         # column mappings for specific formatting (email requires text, phone number requires country code)
         if local_key.lower() == "email" or str(monday_column_id).lower().startswith("email"):
             column_values[monday_column_id] = {"email": value, "text": value}
         elif local_key.lower() == "phone_number" or str(monday_column_id).lower().startswith("phone"):
-            column_values[monday_column_id] = {"phone": value, "countryShortName": "US"} # Hardcoded to only US clients
+            column_values[monday_column_id] = {"phone": _extract_phone_number(value), "countryShortName": "US"} # Hardcoded to only US clients
         else:
             column_values[monday_column_id] = value
 
     return column_values
 
 
-def _monday_create_item(item_name, column_values):
-    token = getattr(settings, "MONDAY_API_TOKEN", None) or getattr(settings, "MONDAY_API", None)
+def _build_business_monday_column_values(submission_payload):
+    business_column_map = {
+        **getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
+        "date_signed": "date4",
+    }
+    return _to_monday_column_values(submission_payload, business_column_map)
+
+@sensitive_variables('token', 'headers', 'variables', 'mutation', 'column_values')
+def _monday_create_item(item_name, column_values, type):
+    token = getattr(settings, "MONDAY_API_TOKEN", None)
     board_id = getattr(settings, "MONDAY_BOARD_ID", None)
-    group_id = getattr(settings, "MONDAY_GROUP_ID", None)
+    business_group_id = getattr(settings, "MONDAY_BUSINESS_GROUP_ID", None)
+    personal_group_id = getattr(settings, "MONDAY_PERSONAL_GROUP_ID", None)
     api_url = getattr(settings, "MONDAY_API_URL", "https://api.monday.com/v2")
     api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
 
+    if type == "business":
+        group_id = business_group_id
+    else:
+        group_id = personal_group_id
+
     if not token:
-        raise RuntimeError("MONDAY_API_TOKEN (or MONDAY_API) is not configured.")
-    if not board_id:
-        raise RuntimeError("MONDAY_BOARD_ID is not configured.")
+        raise RuntimeError("MONDAY_API_TOKEN is not configured.")
 
     headers = {
         "Authorization": token,
@@ -149,44 +175,25 @@ def _monday_create_item(item_name, column_values):
         "API-Version": api_version,
     }
 
-    if group_id:
-        mutation = """
-        mutation ($board_id: ID!, $group_id: String!, $item_name: String!, $column_values: JSON!) {
-          create_item(
-            board_id: $board_id,
-            group_id: $group_id,
-            item_name: $item_name,
-            column_values: $column_values
-          ) {
-            id
-            name
-          }
+    mutation = """
+    mutation ($board_id: ID!, $group_id: String!, $item_name: String!, $column_values: JSON!) {
+        create_item(
+        board_id: $board_id,
+        group_id: $group_id,
+        item_name: $item_name,
+        column_values: $column_values
+        ) {
+        id
+        name
         }
-        """
-        variables = {
-            "board_id": str(board_id),
-            "group_id": group_id,
-            "item_name": item_name,
-            "column_values": json.dumps(column_values),
-        }
-    else:
-        mutation = """
-        mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
-          create_item(
-            board_id: $board_id,
-            item_name: $item_name,
-            column_values: $column_values
-          ) {
-            id
-            name
-          }
-        }
-        """
-        variables = {
-            "board_id": str(board_id),
-            "item_name": item_name,
-            "column_values": json.dumps(column_values),
-        }
+    }
+    """
+    variables = {
+        "board_id": str(board_id),
+        "group_id": str(group_id),
+        "item_name": item_name,
+        "column_values": json.dumps(column_values),
+    }
 
     response = requests.post(
         api_url,
@@ -202,6 +209,85 @@ def _monday_create_item(item_name, column_values):
         raise RuntimeError(f"monday GraphQL errors: {payload['errors']}")
 
     return payload["data"]["create_item"]
+
+
+@sensitive_variables('token', 'headers', 'mutation', 'files')
+def _monday_upload_file_to_column(item_id, file_path, type):
+    token = getattr(settings, "MONDAY_API_TOKEN", None)
+    column_id = getattr(settings, "MONDAY_FILE_ID", None)
+    api_url = getattr(settings, "MONDAY_FILE_API_URL", "https://api.monday.com/v2/file")
+    api_version = getattr(settings, "MONDAY_API_VERSION", "2024-04")
+    file_path = Path(file_path)
+
+    if not token:
+        raise RuntimeError("MONDAY_API_TOKEN is not configured.")
+
+    if not column_id:
+        raise RuntimeError("MONDAY_FILE_ID is not configured.")
+
+    if not file_path.exists():
+        raise RuntimeError(f"Generated PDF does not exist: {file_path}")
+
+    headers = {
+        "Authorization": token,
+        "API-Version": api_version,
+    }
+
+    mutation = f"""
+    mutation ($file: File!) {{
+        add_file_to_column(
+            item_id: {json.dumps(str(item_id))},
+            column_id: {json.dumps(column_id)},
+            file: $file
+        ) {{
+            id
+        }}
+    }}
+    """
+
+    with file_path.open("rb") as upload_file:
+        files = {
+            "query": (None, mutation),
+            "variables[file]": (file_path.name, upload_file, "application/pdf"),
+        }
+        response = requests.post(
+            api_url,
+            headers=headers,
+            files=files,
+            timeout=60,
+        )
+
+    if not response.ok:
+        raise RuntimeError(f"monday file upload HTTP {response.status_code}: {response.text}")
+
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(f"monday file upload GraphQL errors: {payload['errors']}")
+
+    return payload["data"]["add_file_to_column"]
+
+
+def _sync_monday_submission_with_file(request, session_key, submission_payload, item_name, column_values, type):
+    monday_item_id = submission_payload.get("monday_item_id")
+
+    if not monday_item_id:
+        monday_item = _monday_create_item(
+            item_name=item_name,
+            column_values=column_values,
+            type=type,
+        )
+        monday_item_id = monday_item["id"]
+        submission_payload["monday_item_id"] = monday_item_id
+        request.session[session_key] = submission_payload
+        request.session.modified = True
+
+    pdf_path = submission_payload.get("generated_pdf_path")
+    if pdf_path:
+        _monday_upload_file_to_column(
+            item_id=monday_item_id,
+            file_path=pdf_path,
+            type=type,
+        )
 
 
 def authenticate_intake_login(login_id: str, password: str, next_path: str = None):
@@ -261,13 +347,14 @@ def submission_processing_view(request):
         try:
             if business_submission:
                 business_item_name = business_submission.get("business_name") or "Business Intake Submission"
-                business_columns = _to_monday_column_values(
+                business_columns = _build_business_monday_column_values(business_submission)
+                _sync_monday_submission_with_file(
+                    request,
+                    "monday_pending_business_submission",
                     business_submission,
-                    getattr(settings, "MONDAY_BUSINESS_COLUMN_MAP", {}),
-                )
-                _monday_create_item(
                     item_name=business_item_name,
                     column_values=business_columns,
+                    type="business"
                 )
                 request.session.pop("monday_pending_business_submission", None)
 
@@ -280,9 +367,13 @@ def submission_processing_view(request):
                     personal_submission,
                     getattr(settings, "MONDAY_PERSONAL_COLUMN_MAP", {}),
                 )
-                _monday_create_item(
+                _sync_monday_submission_with_file(
+                    request,
+                    "monday_pending_personal_submission",
+                    personal_submission,
                     item_name=personal_item_name,
                     column_values=personal_columns,
+                    type="personal"
                 )
                 request.session.pop("monday_pending_personal_submission", None)
 
@@ -304,7 +395,7 @@ def submission_processing_view(request):
         },
     )
 
-
+@sensitive_variables('generated_password')
 @login_required(login_url="admin_login")
 def admin_dashboard(request):
     # Currently cleans up expired credentials on dashboard startup, can disable this to maintain temp ID persistence in the DB
@@ -318,7 +409,7 @@ def admin_dashboard(request):
     if request.method == "POST":
         form = TemporaryIntakeCredentialCreateForm(request.POST)
         if form.is_valid():
-            expires_at = timezone.now() + timedelta(hours=24)
+            expires_at = timezone.now() + timedelta(days=5)
             generated_password = secrets.token_urlsafe(12)
             
             created_by_login_id = request.user.email if request.user.email else request.user.username
@@ -356,7 +447,7 @@ def admin_dashboard(request):
                     "password": generated_password,
                     "form_type": credential.get_form_type_display(),
                     # Convert date to string so it can be stored in the session (JSON)
-                    "expires_at": credential.expires_at.strftime("%m/%d/%Y %I:%M %p"),
+                    "expires_at": credential.expires_at.astimezone(ZoneInfo("America/Chicago")).strftime("%m/%d/%Y %I:%M %p"),
                     "client_email": credential.client_email,
                     "email_sent": email_sent,
                     "email_error": email_error,
@@ -380,8 +471,8 @@ def admin_dashboard(request):
         },
     )
 
-
-@sensitive_variables()  # helps prevent sensitive values showing up in debug output
+@sensitive_post_parameters('fin_number', 'bank_account_number', 'bank_routing_number')
+@sensitive_variables()
 @require_intake_login
 def business_view(request):
     if request.method == "POST":
@@ -457,10 +548,9 @@ def business_view(request):
                     / "business"
                     / f"business_submission_{submission.id}_{timestamp}.pdf"
                 )
-                fill_business_pdf(data, output_path=output_path)
+                pdf_path = fill_business_pdf(data, output_path=output_path)
             except Exception as exc:
                 print(f"Failed to generate business PDF for submission {submission.id}: {exc}")
-            pdf_path = output_path
             
             is_bypass = request.session.get("intake_is_env_bypass", False)
 
@@ -472,10 +562,13 @@ def business_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs + bank_account_number were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
+            serialized["date_signed"] = timezone.localdate().strftime("%Y-%m-%d")
+            if pdf_path:
+                serialized["generated_pdf_path"] = str(pdf_path)
             request.session["monday_pending_business_submission"] = serialized
             request.session["submitted_form_type"] = "business"
             # Lock access away from the form endpoint until monday sync finalizes.
@@ -488,7 +581,7 @@ def business_view(request):
 
     return render(request, "business_intake.html", {"form": form})
 
-
+@sensitive_post_parameters('fin_number', 'bank_account_number', 'bank_routing_number')
 @sensitive_variables()
 @require_intake_login
 def personal_view(request):
@@ -594,10 +687,12 @@ def personal_view(request):
                     if credential:
                         credential.used_at = timezone.now()
                         credential.save(update_fields=["used_at"])
-                        send_submission_confirmation_email(submission, credential, pdf_path=pdf_path)
+                        send_submission_confirmation_email(submission, credential)
 
             # IMPORTANT: SSNs were accepted/validated but NOT saved.
             serialized = _serialize_submission(submission)
+            if pdf_path:
+                serialized["generated_pdf_path"] = str(pdf_path)
             request.session["monday_pending_personal_submission"] = serialized
             request.session["submitted_form_type"] = "individual"
             # Lock access away from the form endpoint until monday sync finalizes.
@@ -610,7 +705,7 @@ def personal_view(request):
 
     return render(request, "personal_intake.html", {"form": form})
 
-
+@sensitive_post_parameters('password')
 @sensitive_variables("login_id", "password")
 def intake_login(request):
     if request.method == "POST":

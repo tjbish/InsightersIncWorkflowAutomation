@@ -24,25 +24,37 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
-# TODO: Remove default once temp IDs can be generated
 INTAKE_LOGIN_ID = env('INTAKE_LOGIN_ID', default=None)
 INTAKE_LOGIN_PASSWORD = env('INTAKE_LOGIN_PASSWORD', default=None)
 
 # Third Party API Settings
+# Delete Sharefile API keys
 SHAREFILE_CLIENT_ID = env('SHAREFILE_CLIENT_ID', default=None)
 SHAREFILE_API = env('SHAREFILE_API', default=None)
 SHAREFILE_URI = env('SHAREFILE_URI', default=None)
 
-MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None) # Change back to production API key after debugging is finished
+# Production keys & ID mappings
+MONDAY_API_TOKEN = env('MONDAY_API', default=None)
 MONDAY_API_URL = env('MONDAY_API_URL', default='https://api.monday.com/v2')
+MONDAY_FILE_API_URL = env('MONDAY_FILE_API_URL', default='https://api.monday.com/v2/file')
 MONDAY_API_VERSION = env('MONDAY_API_VERSION', default='2024-04')
 MONDAY_BOARD_ID = env('MONDAY_BOARD_ID', default=None)
-MONDAY_GROUP_ID = env('MONDAY_GROUP_ID', default=None)
-MONDAY_BUSINESS_COLUMN_MAP = env.json('MONDAY_BUSINESS_COLUMN_MAP', default={})
-MONDAY_PERSONAL_COLUMN_MAP = env.json('MONDAY_PERSONAL_COLUMN_MAP', default={})
+MONDAY_BUSINESS_GROUP_ID = "group_mm262dz"
+MONDAY_PERSONAL_GROUP_ID = "topics"
+MONDAY_FILE_ID = "file_mm1nffry"
+MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm26e82x", "phone_number":"phone_mm26ghe3"}
+MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm26e82x", "phone_number":"phone_mm26ghe3", "date_signed":"date4"}
+
+# Dev keys & ID mappings
+DEV_MONDAY_API_TOKEN = env('MONDAY_DEV_API', default=None)
+DEV_MONDAY_BOARD_ID = env('DEV_MONDAY_BOARD_ID', default=None)
+DEV_MONDAY_BUSINESS_GROUP_ID = "topics"
+DEV_MONDAY_PERSONAL_GROUP_ID = "group_title"
+DEV_MONDAY_FILE_ID = "file_mm26rrdp"
+DEV_MONDAY_BUSINESS_COLUMN_MAP = {"email":"email_mm27w5wx", "phone_number":"phone_mm27rk8x"}
+DEV_MONDAY_PERSONAL_COLUMN_MAP = {"email":"email_mm27w5wx", "phone_number":"phone_mm27rk8x", "date_signed":"date4"}
 
 INSTALLED_APPS = [
-    # Sprint 2; make sure to check if we need or don't need admin rights
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -81,8 +93,8 @@ MIDDLEWARE = [
 
 
 MICROSOFT_CLIENT_ID = env('ENTRA_CLIENT_ID', default=None)
-MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET', default=None)
-MICROSOFT_TENANT_ID = env('ENTRA_TENANT_ID', default='common')
+MICROSOFT_CLIENT_SECRET = env('ENTRA_CLIENT_SECRET', default=None) # Prod Expires in 180 days (Oct. 1 2026)
+MICROSOFT_TENANT_ID = env('ENTRA_TENANT_ID', default=None)
 
 
 SOCIALACCOUNT_PROVIDERS = {
@@ -158,7 +170,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Chicago'
 USE_I18N = True
 USE_TZ = True
 
@@ -167,3 +179,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'src' / 'static']
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Enforce global scrubbing of sensitive POST data on crash reports
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'src.apps.core.error_filters.GlobalSensitiveDataFilter'

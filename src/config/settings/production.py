@@ -4,12 +4,40 @@
 from .base import *
 from google.cloud import secretmanager
 import json
+import re
+import logging
+from django.views.decorators.debug import sensitive_variables
+
+KNOWN_SECRETS = set()
+
+class DynamicSecretFilter(logging.Filter):
+    def filter(self, record):
+        log_message = record.getMessage()
+        
+        # 1. Exact Match Redaction (The GSM Secrets)
+        # If any fetched secret exists in the log message, replace it entirely.
+        for secret in KNOWN_SECRETS:
+            if secret in log_message:
+                log_message = log_message.replace(secret, '[REDACTED_GCP_SECRET]')
+
+        # 2. Regex Fallback (For PII and dynamically generated tokens)
+        # Redact SSNs
+        log_message = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED SSN]', log_message)
+        # Redact Emails
+        log_message = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[REDACTED EMAIL]', log_message)
+        # Catch standard OAuth Bearer tokens just in case
+        log_message = re.sub(r'Bearer\s+[a-zA-Z0-9\-\._~\+\/]+', 'Bearer [REDACTED_TOKEN]', log_message)
+
+        record.msg = log_message
+        record.args = () 
+        return True
 
 # Production settings
 DEBUG = False
 
 client = secretmanager.SecretManagerServiceClient()
 # Function to fetch secret from Google Secret Manager
+@sensitive_variables('response', 'project_id', 'name')
 def get_secret(secret_id: str, version_id: str = "latest") -> str:
     """Fetch a secret from Google Cloud Secret Manager."""
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -17,19 +45,22 @@ def get_secret(secret_id: str, version_id: str = "latest") -> str:
         raise ValueError("GOOGLE_CLOUD_PROJECT environment variable must be set.")
     name = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
     response = client.access_secret_version(name=name)
-    return response.payload.data.decode("UTF-8")
+    secret_value = response.payload.data.decode("UTF-8")
+    
+    if len(secret_value) > 5:
+        KNOWN_SECRETS.add(secret_value)
+        
+    return secret_value
 
 # Map Django settings (keys) to Google Secret Manager IDs (values)
 SECRETS_MAPPING = {
     "SECRET_KEY": "DJANGO_SECRET_KEY",
     "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
     "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
-    "SHAREFILE_API": "SHAREFILE_API",
-    "MONDAY_API_TOKEN": "MONDAY_DEV_API",
-    "SHAREFILE_CLIENT_ID": "SHAREFILE_CLIENT_ID",
-    "SHAREFILE_URI": "SHAREFILE_URI",
-    "MONDAY_BUSINESS_MAP_JSON": "MONDAY_BUSINESS_COLUMN_MAP",
-    "MONDAY_PERSONAL_MAP_JSON": "MONDAY_PERSONAL_COLUMN_MAP",
+    "MICROSOFT_CLIENT_ID": "ENTRA_CLIENT_ID",
+    "MICROSOFT_TENANT_ID": "ENTRA_TENANT_ID",
+    "MONDAY_API_TOKEN": "MONDAY_API",
+    "MONDAY_BOARD_ID": "MONDAY_BOARD_ID",
 }
 
 for setting_name, secret_id in SECRETS_MAPPING.items():
@@ -56,12 +87,11 @@ if "MICROSOFT_CLIENT_SECRET" in globals():
     # Update the AllAuth provider config with the fetched secret
     SOCIALACCOUNT_PROVIDERS['microsoft']['APP']['secret'] = globals()["MICROSOFT_CLIENT_SECRET"]
 
-# Parse JSON configurations fetched from Secret Manager
-if "MONDAY_BUSINESS_MAP_JSON" in globals():
-    MONDAY_BUSINESS_COLUMN_MAP = json.loads(globals()["MONDAY_BUSINESS_MAP_JSON"])
-
-if "MONDAY_PERSONAL_MAP_JSON" in globals():
-    MONDAY_PERSONAL_COLUMN_MAP = json.loads(globals()["MONDAY_PERSONAL_MAP_JSON"])
+if "MICROSOFT_CLIENT_ID" in globals():
+    SOCIALACCOUNT_PROVIDERS['microsoft']['APP']['client_id'] = globals()["MICROSOFT_CLIENT_ID"]
+    
+if "MICROSOFT_TENANT_ID" in globals():
+    SOCIALACCOUNT_PROVIDERS['microsoft']['TENANT'] = globals()["MICROSOFT_TENANT_ID"]
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -92,6 +122,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'sensitive_data_filter': {
+            '()': DynamicSecretFilter,
+        }
+    },
     'formatters': {
         'verbose': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
@@ -103,6 +138,7 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'filters': ['sensitive_data_filter'],  # <-- Inject the filter here
         },
     },
     'root': {
