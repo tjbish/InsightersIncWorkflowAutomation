@@ -57,7 +57,11 @@ SECRETS_MAPPING = {
     "SECRET_KEY": "DJANGO_SECRET_KEY",
     "DATABASE_URL_VAL": "DATABASE_URL",  # Fetch into temp var, apply to DATABASES below
     "MICROSOFT_CLIENT_SECRET": "ENTRA_CLIENT_SECRET",
+    "MICROSOFT_CLIENT_ID": "ENTRA_CLIENT_ID",
+    "MICROSOFT_TENANT_ID": "ENTRA_TENANT_ID",
     "DEV_MONDAY_API_TOKEN": "MONDAY_DEV_API", # replace with Prod Key Eventually
+    "DEV_MONDAY_BOARD_ID": "DEV_MONDAY_BOARD_ID", # Disable in Prod
+    # "MONDAY_BOARD_ID": "MONDAY_BOARD_ID", # Enable in Prod
 }
 
 for setting_name, secret_id in SECRETS_MAPPING.items():
